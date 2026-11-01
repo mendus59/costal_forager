@@ -17,6 +17,9 @@ jobs:
       - run: npm ci
       - run: npm run typecheck
       - run: npm test
+      - name: Build web app
+        run: npx expo export --platform web
+        working-directory: apps/mobile
 
   functions:
     runs-on: ubuntu-latest

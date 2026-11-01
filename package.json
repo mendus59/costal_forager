@@ -3,11 +3,12 @@
   "private": true,
   "type": "module",
   "workspaces": [
+    "apps/*",
     "packages/*"
   ],
   "scripts": {
-    "test": "npm run test --workspaces",
-    "typecheck": "npm run typecheck --workspaces",
+    "test": "npm run test --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present",
     "gen:seed": "node --experimental-strip-types scripts/gen-seed.ts"
   }
 }
