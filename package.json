@@ -1,0 +1,13 @@
+{
+  "name": "costal-forager",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "test": "npm run test --workspaces",
+    "typecheck": "npm run typecheck --workspaces",
+    "gen:seed": "node --experimental-strip-types scripts/gen-seed.ts"
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "_note": "NOAA CO-OPS hilo predictions, station 9447130 (Seattle), MLLW, feet. Fetched 2026-11-01 with time_zone=lst_ldt and converted to GMT (PST, UTC-8) to match the app's gmt requests.",
+  "predictions": [
+    { "t": "2026-11-01 10:58", "v": "-0.966", "type": "L" },
+    { "t": "2026-11-01 18:55", "v": "11.489", "type": "H" },
+    { "t": "2026-11-02 01:03", "v": "7.234", "type": "L" },
+    { "t": "2026-11-02 05:03", "v": "8.531", "type": "H" },
+    { "t": "2026-11-02 12:03", "v": "0.168", "type": "L" },
+    { "t": "2026-11-02 19:55", "v": "11.503", "type": "H" },
+    { "t": "2026-11-03 02:26", "v": "5.988", "type": "L" },
+    { "t": "2026-11-03 06:47", "v": "8.012", "type": "H" }
+  ]
+}
