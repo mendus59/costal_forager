@@ -28,7 +28,7 @@ Research behind it (species, tide heights, beaches, data sources):
 | Data | Source | Job | Schedule |
 | --- | --- | --- | --- |
 | Beaches, safe-to-harvest status, species closures, clam/oyster seasons | WA DOH Recreational Shellfish Beaches ArcGIS layer | `sync-doh` | Hourly |
-| Tide stations and high/low predictions (ft MLLW) | NOAA CO-OPS Data and Metadata APIs | `sync-tides` | Weekly |
+| Tide stations and high/low predictions (ft MLLW) | NOAA CO-OPS Data and Metadata APIs | `sync-tides` | Daily (40 stations per run) |
 | Razor clam dig days | WDFW razor clam page (no feed; parsed) | `sync-razor-digs` | Daily |
 | Which species are common on each beach | WDFW beach page "Harvest profile" (parsed) | `sync-beach-profiles` | Every 30 min, 25 beaches a batch |
 | Sunrise and sunset | Computed in `packages/core/src/sun.ts` | none | n/a |

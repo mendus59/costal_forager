@@ -110,9 +110,10 @@ export async function fetchPredictions(
   stationId: string,
   beginKey: string,
   endKey: string,
+  chunkDays = 31,
 ): Promise<TideEvent[]> {
   const events: TideEvent[] = [];
-  for (const [b, e] of dateChunks(beginKey, endKey)) {
+  for (const [b, e] of dateChunks(beginKey, endKey, chunkDays)) {
     const res = await fetchFn(predictionsUrl(stationId, b, e));
     if (!res.ok) throw new Error(`NOAA HTTP ${res.status} for station ${stationId}`);
     events.push(...parsePredictions(await res.json()));

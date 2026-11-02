@@ -17,7 +17,10 @@ Deno.serve((req) =>
         source_url: WDFW_RAZOR_PAGE,
       })),
     );
-    if (rows.length) must(await db.from("razor_digs").upsert(rows));
-    return { digs: digs.length, rows: rows.length, dates: digs.map((d) => d.date) };
+    // The page can list the same beach and date twice (e.g. a tentative and a
+    // confirmed line); one upsert cannot touch a row twice, so keep the last.
+    const unique = [...new Map(rows.map((r) => [`${r.dig_date}|${r.razor_beach}`, r])).values()];
+    if (unique.length) must(await db.from("razor_digs").upsert(unique));
+    return { digs: digs.length, rows: unique.length, dates: digs.map((d) => d.date) };
   })
 );

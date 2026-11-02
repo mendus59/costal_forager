@@ -39,7 +39,8 @@ if [[ -n "${SUPABASE_SERVICE_ROLE_KEY:-}" ]]; then
   # The functions accept this key as a bearer token (see _shared/db.ts).
   $SB secrets set "JOB_KEY=${SUPABASE_SERVICE_ROLE_KEY}" --project-ref "$REF"
   URL="https://${REF}.supabase.co/functions/v1"
-  for job in sync-doh sync-tides sync-razor-digs; do
+  # sync-tides caches 40 stations per call, so call it a few times up front.
+  for job in sync-doh sync-tides sync-tides sync-tides sync-razor-digs; do
     echo "Running $job"
     curl -sS --fail-with-body --max-time 150 -X POST "$URL/$job" -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" -H "Content-Type: application/json" -d '{}'
     echo

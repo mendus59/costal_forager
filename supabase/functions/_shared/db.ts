@@ -20,7 +20,7 @@ export function authorized(req: Request): boolean {
     .some((key) => !!key && header === `Bearer ${key}`);
 }
 
-const USER_AGENT = "costal_forager/0.1 (Washington shellfish app; https://github.com/mendus59/costal_forager)";
+export const USER_AGENT = "costal_forager/0.1 (Washington shellfish app; https://github.com/mendus59/costal_forager)";
 
 export async function getJson(url: string): Promise<unknown> {
   const res = await fetch(url, { headers: { "User-Agent": USER_AGENT, Accept: "application/json" } });
