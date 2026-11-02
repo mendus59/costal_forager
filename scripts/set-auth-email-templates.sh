@@ -28,6 +28,11 @@ res=$(curl -sS -w '\n%{http_code}' -X PATCH "https://api.supabase.com/v1/project
   -d "$payload")
 code=${res##*$'\n'}
 body=${res%$'\n'*}
+if [[ "$code" == 400 && "$body" == *"custom SMTP"* ]]; then
+  # Free projects on the default email sender cannot change templates.
+  echo "::warning::Email templates not changed: configure custom SMTP (Authentication > Emails > SMTP Settings) and rerun. $body"
+  exit 0
+fi
 if [[ "$code" != 2* ]]; then
   echo "Updating auth email templates failed (HTTP $code): $body" >&2
   exit 1
