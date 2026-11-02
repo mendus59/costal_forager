@@ -2,8 +2,8 @@ name: Deploy Supabase
 
 # Deploys schema, seed, edge functions, first syncs, cron jobs and the
 # sign-in email templates to the Supabase project. Uses the repository
-# secrets SUPABASE_ACCESS_TOKEN, SUPABASE_DB_PASSWORD, SUPABASE_DB_URL
-# (session pooler) and SUPABASE_SERVICE_ROLE_KEY.
+# secrets SUPABASE_ACCESS_TOKEN, SUPABASE_DB_PASSWORD and
+# SUPABASE_SERVICE_ROLE_KEY.
 # Run it from the Actions tab (Run workflow) once this file is on main.
 on:
   workflow_dispatch:
@@ -20,7 +20,6 @@ jobs:
     env:
       SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
       SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
-      SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
       SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
     steps:
       - uses: actions/checkout@v4
@@ -30,7 +29,7 @@ jobs:
       - name: Check secrets
         run: |
           missing=0
-          for v in SUPABASE_ACCESS_TOKEN SUPABASE_DB_PASSWORD SUPABASE_DB_URL SUPABASE_SERVICE_ROLE_KEY; do
+          for v in SUPABASE_ACCESS_TOKEN SUPABASE_DB_PASSWORD SUPABASE_SERVICE_ROLE_KEY; do
             if [ -z "${!v}" ]; then echo "::error::Repository secret $v is not set"; missing=1; fi
           done
           exit $missing

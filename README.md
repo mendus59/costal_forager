@@ -103,7 +103,7 @@ design; row-level security protects user data.
 Deploy everything with:
 
 ```sh
-SUPABASE_ACCESS_TOKEN=... SUPABASE_DB_PASSWORD=... SUPABASE_DB_URL=... \
+SUPABASE_ACCESS_TOKEN=... SUPABASE_DB_PASSWORD=... \
 SUPABASE_SERVICE_ROLE_KEY=... scripts/deploy-supabase.sh
 ```
 
@@ -115,7 +115,7 @@ service role key as a bearer token. `send-alerts` also takes `?dry=1` to
 build alerts without sending, and `?at=<ISO time>` to replay a slot.
 
 Or run the **Deploy Supabase** GitHub Action (Actions > Deploy Supabase >
-Run workflow), which reads those four values from the repository secrets,
+Run workflow), which reads those three values from the repository secrets,
 runs the script above and then `scripts/set-auth-email-templates.sh`.
 
 Two auth settings:
