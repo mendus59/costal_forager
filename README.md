@@ -123,6 +123,9 @@ Two auth settings:
 1. **Magic Link** and **Confirm signup** email templates must include
    `{{ .Token }}`, or users get a link instead of a code.
    `scripts/set-auth-email-templates.sh` sets both through the Management API
-   (needs `SUPABASE_ACCESS_TOKEN`).
+   (needs `SUPABASE_ACCESS_TOKEN`). Free projects can only change templates
+   with custom SMTP, so it also points Auth at Resend SMTP when
+   `RESEND_API_KEY` and `EMAIL_FROM` (an address on a domain verified in
+   Resend) are set. The built-in sender only mails project team members.
 2. **Authentication > Providers > Email**: keep "Enable email signup" on.
    The default email sender is rate-limited; add custom SMTP before launch.
