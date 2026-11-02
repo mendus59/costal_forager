@@ -8,10 +8,16 @@ export function serviceClient(): SupabaseClient {
   return createClient(url, key, { auth: { persistSession: false } });
 }
 
-/** Only callers holding the service role key (pg_cron, admins) may run syncs. */
+/**
+ * Only callers holding the service role key (pg_cron, admins) may run syncs.
+ * JOB_KEY is a function secret the deploy script sets to the key it stores in
+ * Vault for pg_cron; it can differ from the built-in SUPABASE_SERVICE_ROLE_KEY
+ * (for example a new-style sb_secret_ key versus the legacy JWT).
+ */
 export function authorized(req: Request): boolean {
-  const key = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-  return !!key && req.headers.get("Authorization") === `Bearer ${key}`;
+  const header = req.headers.get("Authorization");
+  return [Deno.env.get("SUPABASE_SERVICE_ROLE_KEY"), Deno.env.get("JOB_KEY")]
+    .some((key) => !!key && header === `Bearer ${key}`);
 }
 
 const USER_AGENT = "costal_forager/0.1 (Washington shellfish app; https://github.com/mendus59/costal_forager)";

@@ -22,10 +22,16 @@ payload=$(jq -n --arg body "$BODY" '{
   mailer_templates_confirmation_content: $body
 }')
 
-curl -sS --fail-with-body -X PATCH "https://api.supabase.com/v1/projects/${REF}/config/auth" \
+res=$(curl -sS -w '\n%{http_code}' -X PATCH "https://api.supabase.com/v1/projects/${REF}/config/auth" \
   -H "Authorization: Bearer ${SUPABASE_ACCESS_TOKEN}" \
   -H "Content-Type: application/json" \
-  -d "$payload" \
-  | jq '{mailer_subjects_magic_link, mailer_subjects_confirmation,
-         magic_link_has_token: (.mailer_templates_magic_link_content | contains("{{ .Token }}")),
-         confirmation_has_token: (.mailer_templates_confirmation_content | contains("{{ .Token }}"))}'
+  -d "$payload")
+code=${res##*$'\n'}
+body=${res%$'\n'*}
+if [[ "$code" != 2* ]]; then
+  echo "Updating auth email templates failed (HTTP $code): $body" >&2
+  exit 1
+fi
+echo "$body" | jq '{mailer_subjects_magic_link, mailer_subjects_confirmation,
+  magic_link_has_token: ((.mailer_templates_magic_link_content // "") | contains("{{ .Token }}")),
+  confirmation_has_token: ((.mailer_templates_confirmation_content // "") | contains("{{ .Token }}"))}'

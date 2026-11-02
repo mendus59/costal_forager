@@ -36,14 +36,17 @@ sql -f supabase/seed.sql
 $SB functions deploy sync-doh sync-tides sync-razor-digs sync-beach-profiles send-alerts --project-ref "$REF"
 
 if [[ -n "${SUPABASE_SERVICE_ROLE_KEY:-}" ]]; then
+  # The functions accept this key as a bearer token (see _shared/db.ts).
+  $SB secrets set "JOB_KEY=${SUPABASE_SERVICE_ROLE_KEY}" --project-ref "$REF"
   URL="https://${REF}.supabase.co/functions/v1"
   for job in sync-doh sync-tides sync-razor-digs; do
     echo "Running $job"
-    curl -sS -X POST "$URL/$job" -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" -H "Content-Type: application/json" -d '{}'
+    curl -sS --fail-with-body --max-time 150 -X POST "$URL/$job" -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" -H "Content-Type: application/json" -d '{}'
     echo
   done
   sql "select vault.create_secret('https://${REF}.supabase.co', 'project_url') where not exists (select 1 from vault.secrets where name = 'project_url');"
   sql "select vault.create_secret('${SUPABASE_SERVICE_ROLE_KEY}', 'service_role_key') where not exists (select 1 from vault.secrets where name = 'service_role_key');"
+  sql "select vault.update_secret(id, '${SUPABASE_SERVICE_ROLE_KEY}') from vault.secrets where name = 'service_role_key';"
   sql -f supabase/cron.sql
   echo "Scheduled jobs."
 else
