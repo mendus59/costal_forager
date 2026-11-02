@@ -50,7 +50,7 @@ jobs:
       - name: Apply migrations and seed
         run: |
           P="psql -h localhost -U postgres -v ON_ERROR_STOP=1 -q"
-          $P -c "create schema auth; create table auth.users (id uuid primary key); create function auth.uid() returns uuid language sql stable as 'select null::uuid';"
+          $P -c "create schema auth; create table auth.users (id uuid primary key); create function auth.uid() returns uuid language sql stable as 'select null::uuid'; create role anon; create role authenticated;"
           for f in supabase/migrations/*.sql; do $P -f "$f"; done
           $P -f supabase/seed.sql
           $P -c "select count(*) from species"

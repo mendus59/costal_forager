@@ -1,4 +1,6 @@
 import { DOH_SAFETY_MAP, getSpecies, SPECIES, WDFW_RAZOR_PAGE, type SpeciesId, type TimeWindow } from '@costal-forager/core';
+import { Link } from 'expo-router';
+import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet } from 'react-native';
 
 import { Chip } from '@/components/Badges';
@@ -6,6 +8,7 @@ import { ExternalLink } from '@/components/ExternalLink';
 import { Stepper } from '@/components/Stepper';
 import { Text, View, useThemeColor } from '@/components/Themed';
 import { fmtFt, fmtMinutes } from '@/lib/format';
+import { pushSupported, registerForPush } from '@/lib/notifications';
 import { useUser } from '@/lib/store';
 
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -13,8 +16,20 @@ const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v
 const wrap = (m: number) => ((m % 1440) + 1440) % 1440;
 
 export default function SettingsScreen() {
-  const { prefs, setPrefs, favoriteSpecies, toggleSpecies, reset } = useUser();
+  const { prefs, setPrefs, favoriteSpecies, toggleSpecies, reset, account, sync, syncError, signOut, notify, setNotify, favoriteBeaches } =
+    useUser();
   const tint = useThemeColor('tint');
+  const [pushError, setPushError] = useState<string | null>(null);
+
+  const enableAlerts = async (on: boolean) => {
+    setPushError(null);
+    if (!on) return setNotify((n) => ({ ...n, enabled: false }));
+    const r = await registerForPush();
+    if (!r.ok) return setPushError(r.reason);
+    setNotify((n) => ({ ...n, enabled: true }));
+  };
+  const syncText =
+    sync === 'syncing' ? 'Syncing…' : sync === 'error' ? `Sync failed: ${syncError}` : 'Favorites and settings are synced.';
   const w = prefs.window;
 
   const setWindow = (window: TimeWindow) => setPrefs((p) => ({ ...p, window }));
@@ -44,6 +59,90 @@ export default function SettingsScreen() {
 
   return (
     <ScrollView contentContainerStyle={styles.page}>
+      <View card>
+        <Text style={styles.h2}>Account</Text>
+        {account ? (
+          <>
+            <Text style={styles.help}>Signed in as {account.email ?? 'your account'}.</Text>
+            <Text muted style={styles.help}>
+              {syncText}
+            </Text>
+            <Pressable onPress={signOut} accessibilityRole="button">
+              <Text style={[styles.link, { color: tint }]}>Sign out</Text>
+            </Pressable>
+          </>
+        ) : (
+          <>
+            <Text muted style={styles.help}>
+              Favorites and settings are saved on this device. Sign in to keep them everywhere and to get alerts.
+            </Text>
+            <Link href="/sign-in" asChild>
+              <Pressable accessibilityRole="button">
+                <Text style={[styles.link, { color: tint }]}>Sign in with email</Text>
+              </Pressable>
+            </Link>
+          </>
+        )}
+      </View>
+
+      {pushSupported && (
+        <View card>
+          <Text style={styles.h2}>Alerts</Text>
+          <Text muted style={styles.help}>
+            A morning notification such as "Today is a good day for Oysters at Potlatch!" for your favorite beaches
+            and species.
+          </Text>
+          {!account ? (
+            <Text muted style={styles.help}>
+              Sign in to turn on alerts.
+            </Text>
+          ) : (
+            <>
+              <View style={styles.chips}>
+                <Chip label="Off" selected={!notify.enabled} onPress={() => enableAlerts(false)} />
+                <Chip label="On" selected={notify.enabled} onPress={() => enableAlerts(true)} />
+              </View>
+              {pushError && <Text style={styles.error}>{pushError}</Text>}
+              {notify.enabled && (
+                <>
+                  {favoriteBeaches.length === 0 && (
+                    <Text muted style={styles.help}>
+                      Star a beach first; alerts only cover your favorite beaches.
+                    </Text>
+                  )}
+                  <Stepper
+                    label="Send at"
+                    hint="Pacific time"
+                    value={fmtMinutes(notify.localMinutes)}
+                    onMinus={() => setNotify((n) => ({ ...n, localMinutes: clamp(n.localMinutes - 30, 240, 1320) }))}
+                    onPlus={() => setNotify((n) => ({ ...n, localMinutes: clamp(n.localMinutes + 30, 240, 1320) }))}
+                  />
+                  <Text style={styles.h3}>Only for days rated</Text>
+                  <View style={styles.chips}>
+                    {(['great', 'good', 'marginal'] as const).map((r) => (
+                      <Chip
+                        key={r}
+                        label={r === 'great' ? 'Great' : r === 'good' ? 'Good or better' : 'Marginal or better'}
+                        selected={notify.minRating === r}
+                        onPress={() => setNotify((n) => ({ ...n, minRating: r }))}
+                      />
+                    ))}
+                  </View>
+                  <Text style={styles.h3}>Evening before</Text>
+                  <View style={styles.chips}>
+                    <Chip
+                      label="Also tell me the night before"
+                      selected={notify.eveningBefore}
+                      onPress={() => setNotify((n) => ({ ...n, eveningBefore: !n.eveningBefore }))}
+                    />
+                  </View>
+                </>
+              )}
+            </>
+          )}
+        </View>
+      )}
+
       <View card>
         <Text style={styles.h2}>When you like to go</Text>
         <Text muted style={styles.help}>
@@ -171,4 +270,5 @@ const styles = StyleSheet.create({
   chips: { flexDirection: 'row', flexWrap: 'wrap', backgroundColor: 'transparent', marginTop: 4 },
   link: { fontSize: 15, marginTop: 8 },
   reset: { alignItems: 'center', padding: 12 },
+  error: { color: '#c0392b', fontSize: 13, marginTop: 4 },
 });
