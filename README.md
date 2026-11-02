@@ -114,10 +114,15 @@ runs `supabase/cron.sql` to schedule the jobs. The functions only accept the
 service role key as a bearer token. `send-alerts` also takes `?dry=1` to
 build alerts without sending, and `?at=<ISO time>` to replay a slot.
 
-Two settings in the dashboard:
+Or run the **Deploy Supabase** GitHub Action (Actions > Deploy Supabase >
+Run workflow), which reads those four values from the repository secrets,
+runs the script above and then `scripts/set-auth-email-templates.sh`.
 
-1. **Authentication > Emails > Magic Link** template: include the code, for
-   example `<h2>Your Coastal Forager code</h2><p>{{ .Token }}</p>`. Without
-   `{{ .Token }}` users get a link instead of a code.
+Two auth settings:
+
+1. **Magic Link** and **Confirm signup** email templates must include
+   `{{ .Token }}`, or users get a link instead of a code.
+   `scripts/set-auth-email-templates.sh` sets both through the Management API
+   (needs `SUPABASE_ACCESS_TOKEN`).
 2. **Authentication > Providers > Email**: keep "Enable email signup" on.
    The default email sender is rate-limited; add custom SMTP before launch.
