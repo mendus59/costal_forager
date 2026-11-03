@@ -14,7 +14,8 @@ cd "$(dirname "$0")/.."
 REF="${SUPABASE_PROJECT_REF:-sngnpyvxufllutqrwqjw}"
 : "${SUPABASE_ACCESS_TOKEN:?set SUPABASE_ACCESS_TOKEN}"
 : "${SUPABASE_DB_PASSWORD:?set SUPABASE_DB_PASSWORD}"
-SB="npx -y supabase@latest"
+# Pinned: CLI v3 (2026-11-02) asks for confirmation before deploys and fails in CI.
+SB="npx -y supabase@2.122.1"
 
 # Runs SQL (an argument, or a file with -f) on the project via the Management API.
 sql() {
