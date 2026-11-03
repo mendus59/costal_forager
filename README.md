@@ -21,7 +21,7 @@ Research behind it (species, tide heights, beaches, data sources):
 | `supabase/functions` | Scheduled sync jobs and the `send-alerts` push job (Deno edge functions). |
 | `supabase/cron.sql` | Schedules every job with `pg_cron` + `pg_net`. |
 | `scripts/deploy-supabase.sh` | One-shot backend deploy: schema, seed, functions, first sync, schedules. |
-| `apps/mobile` | Expo app (iOS, Android, web): Today, Beaches, Beach detail, Settings, Sign in, home-screen widget. |
+| `apps/mobile` | Expo app (iOS, Android, web): Today, Beaches, Beach detail, Settings, home-screen widget. |
 
 ## Data sources
 
@@ -68,10 +68,11 @@ The app reads from Supabase and falls back to the DOH layer and NOAA directly
 when the backend is unreachable (razor clam digs and harvest profiles need the
 backend). Everything is cached on the device, so it opens offline.
 
-Signing in is optional: email plus a 6-digit code. Signed-in users get their
-favorites and settings on every device and can turn on alerts. On sign-in,
-favorites from the device and the account are merged; settings come from the
-account if it has ever saved any.
+There is no sign-in. On first launch the app creates an anonymous Supabase
+account for the install, which backs up favorites and settings and owns the
+push token for alerts. Data does not move between devices and is lost if the
+app is deleted; a later "Sign in with Apple/Google" can link to the same
+anonymous account to keep it.
 
 Push alerts, the home-screen widget and background refresh need a
 **development build** (they don't run in Expo Go):
@@ -116,16 +117,6 @@ build alerts without sending, and `?at=<ISO time>` to replay a slot.
 
 Or run the **Deploy Supabase** GitHub Action (Actions > Deploy Supabase >
 Run workflow), which reads those three values from the repository secrets,
-runs the script above and then `scripts/set-auth-email-templates.sh`.
-
-Two auth settings:
-
-1. **Magic Link** and **Confirm signup** email templates must include
-   `{{ .Token }}`, or users get a link instead of a code.
-   `scripts/set-auth-email-templates.sh` sets both through the Management API
-   (needs `SUPABASE_ACCESS_TOKEN`). Free projects can only change templates
-   with custom SMTP, so it also points Auth at Resend SMTP when
-   `RESEND_API_KEY` and `EMAIL_FROM` (an address on a domain verified in
-   Resend) are set. The built-in sender only mails project team members.
-2. **Authentication > Providers > Email**: keep "Enable email signup" on.
-   The default email sender is rate-limited; add custom SMTP before launch.
+runs the script above and then `scripts/set-auth-config.sh`, which turns on
+anonymous sign-ins (Authentication > Sign In / Providers > "Allow anonymous
+sign-ins"). No email setup is needed.

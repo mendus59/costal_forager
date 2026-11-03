@@ -1,6 +1,7 @@
 /**
  * The user's favorites, scoring preferences and alert settings. Kept on the
- * device, and synced to the account while signed in.
+ * device and backed up to an anonymous Supabase account that the app creates
+ * on first launch (no email or password), which also owns the push token.
  */
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { Session } from '@supabase/supabase-js';
@@ -26,8 +27,8 @@ export type SyncStatus = 'local' | 'syncing' | 'synced' | 'error';
 
 interface Store extends UserState {
   ready: boolean;
-  /** Signed-in account, or null. */
-  account: { id: string; email: string | null } | null;
+  /** This install's anonymous account, or null until it is created. */
+  account: { id: string } | null;
   sync: SyncStatus;
   syncError: string | null;
   toggleBeach(bidn: string): void;
@@ -35,7 +36,6 @@ interface Store extends UserState {
   setPrefs(update: (p: ScoringPrefs) => ScoringPrefs): void;
   setNotify(update: (n: NotifySettings) => NotifySettings): void;
   reset(): void;
-  signOut(): Promise<void>;
 }
 
 const Ctx = createContext<Store | null>(null);
@@ -66,10 +66,17 @@ export function UserProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
+    // Every install gets an anonymous account the first time it runs. If it
+    // fails (offline), the app keeps working locally and tries again next launch.
     supabase.auth
       .getSession()
-      .then(({ data }) => setSession(data.session))
-      .catch(() => {});
+      .then(async ({ data }) => {
+        if (data.session) return setSession(data.session);
+        const { data: anon, error } = await supabase.auth.signInAnonymously();
+        if (error) throw error;
+        setSession(anon.session);
+      })
+      .catch((e) => setSyncError(String(e?.message ?? e)));
     const { data } = supabase.auth.onAuthStateChange((_event, s) => setSession(s));
     return () => data.subscription.unsubscribe();
   }, []);
@@ -86,7 +93,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
     }, 800);
   }, []);
 
-  // Merge with the account once per sign-in.
+  // Merge with the account once per session.
   const userId = session?.user.id ?? null;
   useEffect(() => {
     if (!ready) return;
@@ -130,7 +137,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
     () => ({
       ...state,
       ready,
-      account: session ? { id: session.user.id, email: session.user.email ?? null } : null,
+      account: session ? { id: session.user.id } : null,
       sync,
       syncError,
       toggleBeach: (bidn) =>
@@ -150,9 +157,6 @@ export function UserProvider({ children }: { children: ReactNode }) {
       setPrefs: (fn) => update((s) => ({ ...s, prefs: fn(s.prefs) })),
       setNotify: (fn) => update((s) => ({ ...s, notify: fn(s.notify) })),
       reset: () => update(() => DEFAULT_STATE),
-      signOut: async () => {
-        await supabase.auth.signOut();
-      },
     }),
     [state, ready, session, sync, syncError, update],
   );

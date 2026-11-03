@@ -53,7 +53,6 @@ function RootLayoutNav() {
         <Stack>
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
           <Stack.Screen name="beach/[bidn]" options={{ title: 'Beach' }} />
-          <Stack.Screen name="sign-in" options={{ title: 'Sign in', presentation: 'modal' }} />
         </Stack>
         <WidgetSync />
       </ThemeProvider>

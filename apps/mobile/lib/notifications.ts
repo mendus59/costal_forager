@@ -1,7 +1,7 @@
 /**
  * Push alerts. The server (supabase/functions/send-alerts) decides what to
  * send; the app only asks permission and registers this device's Expo push
- * token with the signed-in account.
+ * token with this install's anonymous account.
  */
 import Constants from 'expo-constants';
 import * as Device from 'expo-device';
