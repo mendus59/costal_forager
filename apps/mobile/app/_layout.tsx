@@ -10,10 +10,8 @@ import { listenForTaps } from '@/lib/notifications';
 import { UserProvider } from '@/lib/store';
 import { WidgetSync } from '@/lib/widget-sync';
 
-export {
-  // Catch any errors thrown by the Layout component.
-  ErrorBoundary,
-} from 'expo-router';
+// Catch any errors thrown by the Layout component (reloads on stale web chunks).
+export { ErrorBoundary } from '@/lib/error-boundary';
 
 export const unstable_settings = {
   anchor: '(tabs)',
