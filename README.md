@@ -21,14 +21,14 @@ Research behind it (species, tide heights, beaches, data sources):
 | `supabase/functions` | Scheduled sync jobs and the `send-alerts` push job (Deno edge functions). |
 | `supabase/cron.sql` | Schedules every job with `pg_cron` + `pg_net`. |
 | `scripts/deploy-supabase.sh` | One-shot backend deploy: schema, seed, functions, first sync, schedules. |
-| `apps/mobile` | Expo app (iOS, Android, web): Today, Beaches, Beach detail, Settings, Sign in, home-screen widget. |
+| `apps/mobile` | Expo app (iOS, Android, web): Today, Beaches, Beach detail, Settings, home-screen widget. |
 
 ## Data sources
 
 | Data | Source | Job | Schedule |
 | --- | --- | --- | --- |
 | Beaches, safe-to-harvest status, species closures, clam/oyster seasons | WA DOH Recreational Shellfish Beaches ArcGIS layer | `sync-doh` | Hourly |
-| Tide stations and high/low predictions (ft MLLW) | NOAA CO-OPS Data and Metadata APIs | `sync-tides` | Weekly |
+| Tide stations and high/low predictions (ft MLLW) | NOAA CO-OPS Data and Metadata APIs | `sync-tides` | Daily (40 stations per run) |
 | Razor clam dig days | WDFW razor clam page (no feed; parsed) | `sync-razor-digs` | Daily |
 | Which species are common on each beach | WDFW beach page "Harvest profile" (parsed) | `sync-beach-profiles` | Every 30 min, 25 beaches a batch |
 | Sunrise and sunset | Computed in `packages/core/src/sun.ts` | none | n/a |
@@ -68,10 +68,11 @@ The app reads from Supabase and falls back to the DOH layer and NOAA directly
 when the backend is unreachable (razor clam digs and harvest profiles need the
 backend). Everything is cached on the device, so it opens offline.
 
-Signing in is optional: email plus a 6-digit code. Signed-in users get their
-favorites and settings on every device and can turn on alerts. On sign-in,
-favorites from the device and the account are merged; settings come from the
-account if it has ever saved any.
+There is no sign-in. On first launch the app creates an anonymous Supabase
+account for the install, which backs up favorites and settings and owns the
+push token for alerts. Data does not move between devices and is lost if the
+app is deleted; a later "Sign in with Apple/Google" can link to the same
+anonymous account to keep it.
 
 Push alerts, the home-screen widget and background refresh need a
 **development build** (they don't run in Expo Go):
@@ -103,7 +104,7 @@ design; row-level security protects user data.
 Deploy everything with:
 
 ```sh
-SUPABASE_ACCESS_TOKEN=... SUPABASE_DB_PASSWORD=... SUPABASE_DB_URL=... \
+SUPABASE_ACCESS_TOKEN=... SUPABASE_DB_PASSWORD=... \
 SUPABASE_SERVICE_ROLE_KEY=... scripts/deploy-supabase.sh
 ```
 
@@ -114,10 +115,8 @@ runs `supabase/cron.sql` to schedule the jobs. The functions only accept the
 service role key as a bearer token. `send-alerts` also takes `?dry=1` to
 build alerts without sending, and `?at=<ISO time>` to replay a slot.
 
-Two settings in the dashboard:
-
-1. **Authentication > Emails > Magic Link** template: include the code, for
-   example `<h2>Your Coastal Forager code</h2><p>{{ .Token }}</p>`. Without
-   `{{ .Token }}` users get a link instead of a code.
-2. **Authentication > Providers > Email**: keep "Enable email signup" on.
-   The default email sender is rate-limited; add custom SMTP before launch.
+Or run the **Deploy Supabase** GitHub Action (Actions > Deploy Supabase >
+Run workflow), which reads those three values from the repository secrets,
+runs the script above and then `scripts/set-auth-config.sh`, which turns on
+anonymous sign-ins (Authentication > Sign In / Providers > "Allow anonymous
+sign-ins"). No email setup is needed.

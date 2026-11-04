@@ -1,5 +1,4 @@
 import { DOH_SAFETY_MAP, getSpecies, SPECIES, WDFW_RAZOR_PAGE, type SpeciesId, type TimeWindow } from '@costal-forager/core';
-import { Link } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet } from 'react-native';
 
@@ -16,7 +15,7 @@ const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v
 const wrap = (m: number) => ((m % 1440) + 1440) % 1440;
 
 export default function SettingsScreen() {
-  const { prefs, setPrefs, favoriteSpecies, toggleSpecies, reset, account, sync, syncError, signOut, notify, setNotify, favoriteBeaches } =
+  const { prefs, setPrefs, favoriteSpecies, toggleSpecies, reset, account, sync, syncError, notify, setNotify, favoriteBeaches } =
     useUser();
   const tint = useThemeColor('tint');
   const [pushError, setPushError] = useState<string | null>(null);
@@ -29,7 +28,13 @@ export default function SettingsScreen() {
     setNotify((n) => ({ ...n, enabled: true }));
   };
   const syncText =
-    sync === 'syncing' ? 'Syncing…' : sync === 'error' ? `Sync failed: ${syncError}` : 'Favorites and settings are synced.';
+    sync === 'syncing'
+      ? 'Backing up…'
+      : sync === 'error'
+        ? `Backup failed: ${syncError}`
+        : sync === 'local'
+          ? 'Not backed up yet; this happens once the app is online.'
+          : 'Backed up.';
   const w = prefs.window;
 
   const setWindow = (window: TimeWindow) => setPrefs((p) => ({ ...p, window }));
@@ -60,29 +65,13 @@ export default function SettingsScreen() {
   return (
     <ScrollView contentContainerStyle={styles.page}>
       <View card>
-        <Text style={styles.h2}>Account</Text>
-        {account ? (
-          <>
-            <Text style={styles.help}>Signed in as {account.email ?? 'your account'}.</Text>
-            <Text muted style={styles.help}>
-              {syncText}
-            </Text>
-            <Pressable onPress={signOut} accessibilityRole="button">
-              <Text style={[styles.link, { color: tint }]}>Sign out</Text>
-            </Pressable>
-          </>
-        ) : (
-          <>
-            <Text muted style={styles.help}>
-              Favorites and settings are saved on this device. Sign in to keep them everywhere and to get alerts.
-            </Text>
-            <Link href="/sign-in" asChild>
-              <Pressable accessibilityRole="button">
-                <Text style={[styles.link, { color: tint }]}>Sign in with email</Text>
-              </Pressable>
-            </Link>
-          </>
-        )}
+        <Text style={styles.h2}>Your data</Text>
+        <Text muted style={styles.help}>
+          Favorites and settings are saved on this device and backed up to an anonymous account. No sign-in needed.
+        </Text>
+        <Text muted style={styles.help}>
+          {syncText}
+        </Text>
       </View>
 
       {pushSupported && (
@@ -94,7 +83,7 @@ export default function SettingsScreen() {
           </Text>
           {!account ? (
             <Text muted style={styles.help}>
-              Sign in to turn on alerts.
+              Alerts need a connection the first time. Check you're online and reopen the app.
             </Text>
           ) : (
             <>

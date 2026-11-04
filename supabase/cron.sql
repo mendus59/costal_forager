@@ -22,7 +22,7 @@ revoke all on function invoke_job(text) from public;
 
 -- cron.schedule with a name replaces an existing job of that name.
 select cron.schedule('sync-doh',            '7 * * * *',    $$ select invoke_job('sync-doh') $$);
-select cron.schedule('sync-tides',          '0 9 * * 1',    $$ select invoke_job('sync-tides') $$);
+select cron.schedule('sync-tides',          '0 9 * * *',    $$ select invoke_job('sync-tides') $$);
 select cron.schedule('sync-razor-digs',     '0 15 * * *',   $$ select invoke_job('sync-razor-digs') $$);
 select cron.schedule('sync-beach-profiles', '*/30 * * * *', $$ select invoke_job('sync-beach-profiles') $$);
 select cron.schedule('send-alerts',         '*/15 * * * *', $$ select invoke_job('send-alerts') $$);
