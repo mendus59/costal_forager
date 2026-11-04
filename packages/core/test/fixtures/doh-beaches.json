@@ -1,0 +1,44 @@
+{
+  "_note": "Attributes of two real features from the DOH Recreational_Shellfish_Beaches layer, read 2026-11-01. Geometry is a shortened stand-in in WGS84.",
+  "exceededTransferLimit": false,
+  "features": [
+    {
+      "attributes": {
+        "OBJECTID": 271, "LENGTH": 6061.456, "LINK": "http://parks.state.wa.us/569/Potlatch",
+        "Midx": -123.15620413, "Midy": 47.35108947,
+        "Cseason": "<b>Clams, Mussels & Oysters:</b>&nbsp;&nbsp;Open April 1 through May 31, 2026 only.",
+        "Oseason": " ",
+        "Cstartdate": 1775001600000, "Cenddate": 1780185600000,
+        "Ostartdate": 1775001600000, "Oenddate": 1780185600000,
+        "DFWOpen": 0, "BEACHID": 1228, "BEACHCOMMENT": "", "CLASSIFICATIONDATE": 917568000000,
+        "CLASSIFICATION": "Open", "REASONDESCRIPTION": "", "ORGANIZATION": "WASHINGTON STATE DEPT OF PARKS AND RECREATION",
+        "BIDN": 270440, "BEACHNAME": "POTLATCH SP", "WATERBODYNAME": "Hood Canal #6", "COUNTYNAME": "Mason",
+        "GROWINGAREANAME": "Annas Bay", "ALLSPECIEDESCRIPTIONS": "All Species", "FINALSTATUS": "Closed",
+        "UPDATED": 1793415675000, "Shape__Length": 4228.3680039935625, "DOHDFWStatus": "Closed",
+        "PopupTitle": "CLOSED", "PopupStatus": "Closed", "PopupClosedFor": "All Species",
+        "PopupEmergency": "", "PopupMessage": "", "Vibrio": "No"
+      },
+      "geometry": { "paths": [[[-123.1580, 47.3530], [-123.1562, 47.3511], [-123.1545, 47.3490]]] }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 279, "LENGTH": 1402.272, "LINK": "https://www.keypenparks.com/maple-hollow-park.html ",
+        "Midx": -122.74612725, "Midy": 47.29912437,
+        "Cseason": "<b>Clams, Mussels & Oysters:</b>&nbsp;&nbsp;Open year-round.",
+        "Oseason": " ",
+        "Cstartdate": 1767225600000, "Cenddate": 1798675200000,
+        "Ostartdate": 1767225600000, "Oenddate": 1798675200000,
+        "DFWOpen": 1, "BEACHID": 617, "BEACHCOMMENT": "", "CLASSIFICATIONDATE": 1403599740000,
+        "CLASSIFICATION": "Unclassified",
+        "REASONDESCRIPTION": "This beach has not been evaluated by the Department of Health for pollution problems.  Contact your local health department for local information about pollution problems in this area.",
+        "ORGANIZATION": "Department of Natural Resources",
+        "BIDN": 280630, "BEACHNAME": "MAPLE HOLLOW", "WATERBODYNAME": "Carr Inlet", "COUNTYNAME": "Pierce",
+        "GROWINGAREANAME": "Henderson Bay", "ALLSPECIEDESCRIPTIONS": "None", "FINALSTATUS": "Unclassified",
+        "UPDATED": 1793415675000, "Shape__Length": 633.39716941277334, "DOHDFWStatus": "Unclassified",
+        "PopupTitle": "ADVISORY", "PopupStatus": "Unclassified", "PopupClosedFor": "Scallops",
+        "PopupEmergency": "", "PopupMessage": "", "Vibrio": "No"
+      },
+      "geometry": { "paths": [[[-122.7470, 47.3000], [-122.7461, 47.2991], [-122.7452, 47.2982]]] }
+    }
+  ]
+}
