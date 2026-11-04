@@ -1,0 +1,53 @@
+name: Web app (GitHub Pages)
+
+# Builds the Expo web export and publishes it to GitHub Pages on each push to
+# main. The site lives under /<repo-name>/, so EXPO_BASE_URL prefixes every
+# asset and route with that path. 404.html is a copy of index.html so deep
+# links such as /<repo>/beaches load the app instead of a GitHub 404.
+#
+# One-time setup: Settings > Pages > Build and deployment > Source = "GitHub Actions".
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Export the web app
+        working-directory: apps/mobile
+        env:
+          EXPO_BASE_URL: /${{ github.event.repository.name }}
+        run: |
+          npx expo export --platform web
+          cp dist/index.html dist/404.html
+          touch dist/.nojekyll
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: apps/mobile/dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

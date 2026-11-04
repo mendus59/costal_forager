@@ -68,6 +68,14 @@ The app reads from Supabase and falls back to the DOH layer and NOAA directly
 when the backend is unreachable (razor clam digs and harvest profiles need the
 backend). Everything is cached on the device, so it opens offline.
 
+### Web app on GitHub Pages
+
+Each push to `main` publishes the web build to
+https://mendus59.github.io/costal_forager/ via `.github/workflows/web-pages.yml`.
+The build sets `EXPO_BASE_URL=/costal_forager` (read in `apps/mobile/app.config.js`)
+so assets and routes live under the repo path. One-time setup: Settings > Pages >
+Source = GitHub Actions.
+
 There is no sign-in. On first launch the app creates an anonymous Supabase
 account for the install, which backs up favorites and settings and owns the
 push token for alerts. Data does not move between devices and is lost if the
