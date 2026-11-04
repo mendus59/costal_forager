@@ -17,6 +17,12 @@ on:
       - packages/**
       - package-lock.json
       - .github/workflows/android-apk.yml
+  pull_request:
+    paths:
+      - apps/mobile/**
+      - packages/**
+      - package-lock.json
+      - .github/workflows/android-apk.yml
 
 concurrency:
   group: android-apk-${{ github.ref }}
@@ -64,7 +70,7 @@ jobs:
           path: coastal-forager.apk
 
       - name: Publish to the android-latest pre-release
-        if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
+        if: github.event_name != 'pull_request'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
