@@ -1,134 +1,121 @@
-import { addDays, bestOfDay, localDateKey, nextIdealDays, type DayScore, type SpeciesId } from '@costal-forager/core';
-import { Link } from 'expo-router';
-import { useMemo } from 'react';
-import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet } from 'react-native';
+import { localDateKey, SPECIES, type SpeciesId } from '@costal-forager/core';
+import { useRouter } from 'expo-router';
+import { useCallback, useMemo, useState } from 'react';
+import { ActivityIndicator, ScrollView, StyleSheet } from 'react-native';
 
-import { RatingBadge } from '@/components/Badges';
-import { DayScoreLine } from '@/components/DayScoreLine';
-import { Text, View, useThemeColor } from '@/components/Themed';
-import { toContext, type Beach } from '@/lib/data';
-import { fmtDay, relativeDay } from '@/lib/format';
-import { useBeaches, useBeachTides } from '@/lib/hooks';
-import { speciesForBeach } from '@/lib/species';
+import { Chip } from '@/components/Badges';
+import { Text, View } from '@/components/Themed';
+import { BeachMap } from '@/components/map/BeachMap';
+import type { MapData } from '@/components/map/mapHtml';
+import { useColorScheme } from '@/components/useColorScheme';
+import { useBeaches } from '@/lib/hooks';
+import { MAP_STATE_STYLE, mapLabel, mapState, type MapState } from '@/lib/map-status';
+import { speciesName } from '@/lib/species';
 import { useUser } from '@/lib/store';
 
-export default function TodayScreen() {
-  const { favoriteBeaches, ready } = useUser();
+const DRAW_ORDER = { unknown: 0, closed: 1, caution: 2, open: 3 } as const;
+
+export default function MapScreen() {
   const beaches = useBeaches();
-  const tint = useThemeColor('tint');
+  const { favoriteSpecies } = useUser();
+  const router = useRouter();
+  const dark = useColorScheme() === 'dark';
+  const [species, setSpecies] = useState<SpeciesId | null>(null);
   const today = localDateKey(new Date());
-  const favorites = useMemo(
-    () => (beaches.data ?? []).filter((b) => favoriteBeaches.includes(b.bidn)),
-    [beaches.data, favoriteBeaches],
+
+  // Favorite species first, then the rest, so every species can be picked.
+  const speciesChips = useMemo(
+    () => [...favoriteSpecies, ...SPECIES.map((s) => s.id).filter((id) => !favoriteSpecies.includes(id))],
+    [favoriteSpecies],
   );
 
-  return (
-    <ScrollView
-      contentContainerStyle={styles.page}
-      refreshControl={<RefreshControl refreshing={beaches.loading} onRefresh={beaches.reload} />}>
-      <Text style={styles.h1}>{fmtDay(today)}</Text>
-      <Text muted style={styles.sub}>
-        Ratings combine DOH status, the WDFW season, the low tide, and your hours.
-      </Text>
-
-      {beaches.error && (
-        <View card style={styles.card}>
-          <Text>Couldn't load beach status: {beaches.error}</Text>
-          <Pressable onPress={beaches.reload}>
-            <Text style={{ color: tint, marginTop: 6 }}>Try again</Text>
-          </Pressable>
-        </View>
-      )}
-
-      {!beaches.data && beaches.loading && <ActivityIndicator style={{ marginTop: 24 }} />}
-
-      {beaches.data && ready && favorites.length === 0 && (
-        <View card style={styles.card}>
-          <Text style={styles.h2}>Pick your beaches</Text>
-          <Text muted style={{ marginTop: 4 }}>
-            Star beaches on the Beaches tab to see today's conditions and the next good day here.
-          </Text>
-          <Link href="/beaches" style={[styles.link, { color: tint }]}>
-            Browse beaches
-          </Link>
-        </View>
-      )}
-
-      {favorites.map((b) => (
-        <FavoriteCard key={b.bidn} beach={b} today={today} />
-      ))}
-
-      <Text muted style={styles.footer}>
-        Guidance only. Always check the DOH shellfish safety map or call 1-800-562-5632 before harvesting.
-      </Text>
-    </ScrollView>
-  );
-}
-
-function FavoriteCard({ beach, today }: { beach: Beach; today: string }) {
-  const { favoriteSpecies, prefs } = useUser();
-  const tides = useBeachTides(beach);
-  const ctx = toContext(beach);
-  const species = speciesForBeach(beach, favoriteSpecies);
-
-  const { best, next } = useMemo(() => {
-    if (!ctx || !tides.data) return { best: null, next: [] as DayScore[] };
-    const t = tides.data.tides;
-    const best = bestOfDay(species, ctx, today, t, prefs);
-    // The next three good dates after today, each with its best species.
-    const byDate = new Map<string, DayScore>();
-    for (const id of species as SpeciesId[]) {
-      for (const s of nextIdealDays(id, ctx, t, prefs, { fromKey: addDays(today, 1), todayKey: today, days: 120, limit: 3 })) {
-        const prev = byDate.get(s.date);
-        if (!prev || s.score > prev.score) byDate.set(s.date, s);
-      }
+  const { data, counts } = useMemo(() => {
+    const counts: Record<MapState, number> = { open: 0, caution: 0, closed: 0, unknown: 0, absent: 0 };
+    const placed: { state: Exclude<MapState, 'absent'>; point: MapData['points'][number] }[] = [];
+    for (const b of beaches.data ?? []) {
+      if (!b.location) continue;
+      const state = mapState(b, species, today);
+      counts[state]++;
+      if (state === 'absent') continue;
+      placed.push({
+        state,
+        point: {
+          bidn: b.bidn,
+          name: b.name,
+          lat: b.location.lat,
+          lng: b.location.lng,
+          color: MAP_STATE_STYLE[state].color,
+          label: mapLabel(state, species),
+        },
+      });
     }
-    const next = [...byDate.values()].sort((a, b) => a.date.localeCompare(b.date)).slice(0, 3);
-    return { best, next };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tides.data, beach, species.join(), prefs, today]);
+    // Draw open beaches last so they sit on top where markers overlap.
+    placed.sort((a, b) => DRAW_ORDER[a.state] - DRAW_ORDER[b.state]);
+    const points = placed.map((p) => p.point);
+    return { data: { points, dark } satisfies MapData, counts };
+  }, [beaches.data, species, today, dark]);
+
+  const open = useCallback(
+    (bidn: string) => router.push({ pathname: '/beach/[bidn]', params: { bidn } }),
+    [router],
+  );
 
   return (
-    <Link href={{ pathname: '/beach/[bidn]', params: { bidn: beach.bidn } }} asChild>
-      <Pressable>
-        <View card style={styles.card}>
-          <View style={styles.cardHead}>
-            <Text style={styles.h2}>{beach.name}</Text>
-            {best && <RatingBadge rating={best.rating} large />}
-          </View>
-          {tides.loading && !tides.data && <ActivityIndicator style={{ marginVertical: 8 }} />}
-          {tides.error && !tides.data && <Text muted>Tides unavailable: {tides.error}</Text>}
-          {species.length === 0 && <Text muted>None of your species live on this kind of beach.</Text>}
-          {best && <DayScoreLine score={best} title="Today" />}
-          {next.length > 0 && (
-            <>
-              <Text muted style={styles.label}>
-                Next good days
+    <View style={styles.page}>
+      <View style={styles.controls}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
+          <Chip label="All beaches" selected={species === null} onPress={() => setSpecies(null)} />
+          {speciesChips.map((id) => (
+            <Chip
+              key={id}
+              label={speciesName(id)}
+              selected={species === id}
+              onPress={() => setSpecies((s) => (s === id ? null : id))}
+            />
+          ))}
+        </ScrollView>
+        <Text muted style={styles.summary}>
+          {beaches.data
+            ? species
+              ? `${counts.open + counts.caution} beaches open for ${speciesName(species).toLowerCase()} today`
+              : `${counts.open + counts.caution} of ${counts.open + counts.caution + counts.closed + counts.unknown} beaches open today`
+            : ' '}
+        </Text>
+        <View style={styles.legend}>
+          {(Object.keys(MAP_STATE_STYLE) as (keyof typeof MAP_STATE_STYLE)[])
+            .filter((k) => k !== 'unknown' || counts.unknown > 0)
+            .map((k) => (
+            <View key={k} style={styles.legendItem}>
+              <View style={[styles.dot, { backgroundColor: MAP_STATE_STYLE[k].color }]} />
+              <Text muted style={styles.legendText}>
+                {MAP_STATE_STYLE[k].label} ({counts[k]})
               </Text>
-              {next.map((s) => (
-                <DayScoreLine key={`${s.speciesId}-${s.date}`} score={s} title={relativeDay(s.date, today)} hideCautions />
-              ))}
-            </>
-          )}
-          {tides.data && next.length === 0 && species.length > 0 && (
-            <Text muted style={styles.label}>
-              No good days in the next 120 days with your settings.
-            </Text>
-          )}
+            </View>
+          ))}
         </View>
-      </Pressable>
-    </Link>
+      </View>
+
+      {beaches.error && !beaches.data ? (
+        <Text style={{ padding: 16 }}>Couldn't load beaches: {beaches.error}</Text>
+      ) : (
+        <View style={styles.mapWrap}>
+          <BeachMap data={data} onOpen={open} />
+          {beaches.loading && !beaches.data ? <ActivityIndicator style={styles.spinner} /> : null}
+        </View>
+      )}
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  page: { padding: 16, paddingBottom: 40, gap: 12 },
-  h1: { fontSize: 26, fontWeight: '700' },
-  h2: { fontSize: 18, fontWeight: '700', flexShrink: 1 },
-  sub: { fontSize: 14, marginBottom: 4 },
-  card: { gap: 2 },
-  cardHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'transparent', gap: 8 },
-  label: { fontSize: 12, textTransform: 'uppercase', letterSpacing: 0.5, marginTop: 10 },
-  link: { marginTop: 10, fontWeight: '600' },
-  footer: { fontSize: 12, marginTop: 12, textAlign: 'center' },
+  page: { flex: 1 },
+  controls: { paddingHorizontal: 16, paddingTop: 10 },
+  chips: { paddingBottom: 2 },
+  summary: { fontSize: 13, marginTop: 2 },
+  legend: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginTop: 6, marginBottom: 8 },
+  legendItem: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  dot: { width: 10, height: 10, borderRadius: 5 },
+  legendText: { fontSize: 12 },
+  mapWrap: { flex: 1 },
+  spinner: { position: 'absolute', top: 24, alignSelf: 'center' },
 });

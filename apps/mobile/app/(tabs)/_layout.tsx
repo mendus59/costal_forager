@@ -18,6 +18,15 @@ export default function TabLayout() {
       <Tabs.Screen
         name="index"
         options={{
+          title: 'Map',
+          tabBarIcon: ({ color }) => (
+            <SymbolView name={{ ios: 'mappin.and.ellipse', android: 'pin_drop', web: 'pin_drop' }} tintColor={color} size={26} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="today"
+        options={{
           title: 'Today',
           tabBarIcon: ({ color }) => (
             <SymbolView name={{ ios: 'sun.horizon', android: 'wb_twilight', web: 'wb_twilight' }} tintColor={color} size={26} />
@@ -30,15 +39,6 @@ export default function TabLayout() {
           title: 'Beaches',
           tabBarIcon: ({ color }) => (
             <SymbolView name={{ ios: 'list.bullet', android: 'list', web: 'list' }} tintColor={color} size={26} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="map"
-        options={{
-          title: 'Map',
-          tabBarIcon: ({ color }) => (
-            <SymbolView name={{ ios: 'mappin.and.ellipse', android: 'pin_drop', web: 'pin_drop' }} tintColor={color} size={26} />
           ),
         }}
       />
