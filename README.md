@@ -19,7 +19,7 @@ Research behind it (species, tide heights, beaches, data sources):
 | `supabase/migrations` | Postgres + PostGIS schema with row-level security. |
 | `supabase/seed.sql` | Species seed, generated from `packages/core/src/species.ts` (`npm run gen:seed`). |
 | `supabase/functions` | Scheduled sync jobs (Deno edge functions). |
-| `apps/` | Expo app for iOS, Android and web (step 2, not built yet). |
+| `apps/mobile` | Expo app (iOS, Android, web): Today, Beaches, Beach detail, Settings. |
 
 ## Data sources
 
@@ -52,6 +52,19 @@ npm test            # vitest, packages/core
 npm run typecheck
 npm run gen:seed    # after editing species.ts
 ```
+
+### App
+
+```sh
+cd apps/mobile
+npx expo start          # press w for web, or scan the QR code with Expo Go
+npx expo export --platform web   # static single-page build in dist/
+```
+
+Until the backend is connected, the app reads the DOH layer and NOAA tides
+directly and caches them on the device. Favorites and settings are stored
+on the device too. Razor clam dig days need the backend's `sync-razor-digs`
+job, so razor clams show as closed in the app until then.
 
 ### Supabase
 

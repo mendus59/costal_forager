@@ -58,13 +58,16 @@ export interface DohBeach {
   updatedAt: Date | null;
 }
 
-/** Query URL for one page of beaches, in WGS84. */
-export function dohQueryUrl(offset = 0, where = "1=1"): string {
+/**
+ * Query URL for one page of beaches, in WGS84. Apps can skip the polyline
+ * geometry (`geometry: false`) and use the DOH midpoint, which is much smaller.
+ */
+export function dohQueryUrl(offset = 0, where = "1=1", opts: { geometry?: boolean } = {}): string {
   const q = new URLSearchParams({
     where,
     outFields: "*",
     outSR: "4326",
-    returnGeometry: "true",
+    returnGeometry: String(opts.geometry ?? true),
     orderByFields: "OBJECTID",
     resultOffset: String(offset),
     resultRecordCount: String(DOH_PAGE_SIZE),
