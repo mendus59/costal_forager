@@ -1,7 +1,8 @@
 /**
  * The beach map page. It runs Leaflet with Esri basemap tiles (no API key), inside a WebView on Android/iOS and an iframe on web, so both
  * platforms share one map. The app sends it markers with `setData` and gets
- * back `{ type: 'ready' }` and `{ type: 'open', bidn }` messages.
+ * back `{ type: 'ready' }`, `{ type: 'open', bidn }` and `{ type: 'favorite', bidn }`
+ * (the popup's star was tapped) messages.
  */
 
 export interface MapPoint {
@@ -13,6 +14,8 @@ export interface MapPoint {
   color: string;
   /** Short status shown in the popup, such as "Open for oysters". */
   label: string;
+  /** The user has starred this beach. */
+  favorite: boolean;
 }
 
 export interface MapData {
@@ -20,7 +23,7 @@ export interface MapData {
   dark: boolean;
 }
 
-export type MapMessage = { type: 'ready' } | { type: 'open'; bidn: string };
+export type MapMessage = { type: 'ready' } | { type: 'open'; bidn: string } | { type: 'favorite'; bidn: string };
 
 export const MAP_SOURCE = 'coastal-forager-map';
 
@@ -31,6 +34,7 @@ export function parseMapMessage(raw: unknown): MapMessage | null {
     const msg = m as { type?: unknown; bidn?: unknown };
     if (msg.type === 'ready') return { type: 'ready' };
     if (msg.type === 'open' && typeof msg.bidn === 'string') return { type: 'open', bidn: msg.bidn };
+    if (msg.type === 'favorite' && typeof msg.bidn === 'string') return { type: 'favorite', bidn: msg.bidn };
   } catch {
     // Not one of ours.
   }
@@ -50,7 +54,11 @@ export const MAP_HTML = `<!doctype html>
   html, body, #map { margin: 0; padding: 0; height: 100%; width: 100%; background: #dfe7ea; }
   body.dark, body.dark #map { background: #0d1518; }
   .leaflet-popup-content { margin: 10px 12px; font: 14px/1.35 -apple-system, system-ui, Roboto, sans-serif; }
+  .cf-head { display: flex; align-items: center; gap: 6px; padding-right: 14px; }
   .cf-name { font-weight: 600; font-size: 15px; }
+  .cf-star { border: 0; background: none; padding: 0 2px; margin: 0; font-size: 22px; line-height: 1; cursor: pointer;
+             color: #8a989e; }
+  .cf-star.on { color: #0b6e79; }
   .cf-label { color: #5b6b73; margin-top: 2px; }
   .cf-open { display: inline-block; margin-top: 8px; padding: 6px 10px; border: 0; border-radius: 8px;
              background: #0b6e79; color: #fff; font: inherit; font-weight: 600; cursor: pointer; }
@@ -76,6 +84,11 @@ export const MAP_HTML = `<!doctype html>
   var map = L.map('map', { preferCanvas: true, zoomControl: true, attributionControl: true })
     .setView([47.4, -123.2], 7);
   var tiles = null, dark = null, layer = L.layerGroup().addTo(map), fitted = false;
+  // The beach whose popup is open, so it stays open when the markers are redrawn
+  // (for example after its star is tapped).
+  var openBidn = null;
+  map.on('popupopen', function (e) { openBidn = e.popup.options.bidn || null; });
+  map.on('popupclose', function (e) { if (openBidn === e.popup.options.bidn) openBidn = null; });
   function setTiles(isDark) {
     if (dark === isDark) return;
     dark = isDark;
@@ -89,23 +102,52 @@ export const MAP_HTML = `<!doctype html>
   }
   function popup(p) {
     var box = document.createElement('div');
+    var head = document.createElement('div'); head.className = 'cf-head';
+    var star = document.createElement('button');
+    star.className = 'cf-star' + (p.favorite ? ' on' : '');
+    star.textContent = p.favorite ? '\u2605' : '\u2606';
+    star.title = p.favorite ? 'Remove from favorites' : 'Add to favorites';
+    star.setAttribute('aria-label', (p.favorite ? 'Remove ' : 'Add ') + p.name + (p.favorite ? ' from favorites' : ' to favorites'));
+    star.onclick = function (e) {
+      L.DomEvent.stopPropagation(e);
+      // Flip right away; the app's next setData confirms it.
+      var on = star.className.indexOf(' on') < 0;
+      star.className = 'cf-star' + (on ? ' on' : '');
+      star.textContent = on ? '\u2605' : '\u2606';
+      send({ type: 'favorite', bidn: p.bidn });
+    };
     var name = document.createElement('div'); name.className = 'cf-name'; name.textContent = p.name;
+    head.appendChild(star); head.appendChild(name);
     var label = document.createElement('div'); label.className = 'cf-label'; label.textContent = p.label;
     var btn = document.createElement('button'); btn.className = 'cf-open'; btn.textContent = 'View beach';
     btn.onclick = function () { send({ type: 'open', bidn: p.bidn }); };
-    box.appendChild(name); box.appendChild(label); box.appendChild(btn);
+    box.appendChild(head); box.appendChild(label); box.appendChild(btn);
     return box;
   }
   window.__cfSetData = function (data) {
     setTiles(!!data.dark);
+    var reopen = openBidn, reopenMarker = null;
     layer.clearLayers();
     var bounds = [];
     for (var i = 0; i < data.points.length; i++) {
       var p = data.points[i];
-      L.circleMarker([p.lat, p.lng], {
-        radius: 7, weight: 1.5, color: data.dark ? '#0d1518' : '#ffffff', fillColor: p.color, fillOpacity: 0.95
-      }).bindPopup(popup(p)).addTo(layer);
+      var m = L.circleMarker([p.lat, p.lng], {
+        // Favorites get a bigger marker with a gold ring.
+        radius: p.favorite ? 9 : 7,
+        weight: p.favorite ? 3 : 1.5,
+        color: p.favorite ? '#f2b400' : data.dark ? '#0d1518' : '#ffffff',
+        fillColor: p.color,
+        fillOpacity: 0.95
+      }).bindPopup(popup(p), { bidn: p.bidn }).addTo(layer);
+      if (p.bidn === reopen) reopenMarker = m;
       bounds.push([p.lat, p.lng]);
+    }
+    if (reopenMarker) {
+      // Reopen in place without panning the map.
+      var pp = reopenMarker.getPopup();
+      pp.options.autoPan = false;
+      reopenMarker.openPopup();
+      pp.options.autoPan = true;
     }
     if (!fitted && bounds.length) {
       fitted = true;

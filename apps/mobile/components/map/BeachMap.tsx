@@ -20,7 +20,15 @@ const WebView = RNWebView as unknown as ComponentType<{
 }>;
 
 /** Android/iOS: the Leaflet map in a WebView. */
-export function BeachMap({ data, onOpen }: { data: MapData; onOpen(bidn: string): void }) {
+export function BeachMap({
+  data,
+  onOpen,
+  onFavorite,
+}: {
+  data: MapData;
+  onOpen(bidn: string): void;
+  onFavorite(bidn: string): void;
+}) {
   const ref = useRef<WebViewHandle>(null);
   const [ready, setReady] = useState(false);
 
@@ -38,6 +46,7 @@ export function BeachMap({ data, onOpen }: { data: MapData; onOpen(bidn: string)
         const msg = parseMapMessage(e.nativeEvent.data);
         if (msg?.type === 'ready') setReady(true);
         else if (msg?.type === 'open') onOpen(msg.bidn);
+        else if (msg?.type === 'favorite') onFavorite(msg.bidn);
       }}
       // A reload (e.g. after the WebView process is killed) needs the data again.
       onLoadStart={() => setReady(false)}

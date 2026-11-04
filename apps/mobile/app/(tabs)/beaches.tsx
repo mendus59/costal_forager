@@ -101,6 +101,7 @@ function BeachRow({ beach }: { beach: Beach }) {
   const where = [beach.waterbody, beach.county && `${beach.county} County`].filter(Boolean).join(' · ');
   return (
     <View style={styles.row}>
+      <FavoriteButton bidn={beach.bidn} name={beach.name} size={20} />
       <Link href={{ pathname: '/beach/[bidn]', params: { bidn: beach.bidn } }} asChild>
         <Pressable style={styles.rowMain} accessibilityRole="link">
           <Text style={styles.name}>{beach.name}</Text>
@@ -117,7 +118,6 @@ function BeachRow({ beach }: { beach: Beach }) {
           </View>
         </Pressable>
       </Link>
-      <FavoriteButton bidn={beach.bidn} name={beach.name} />
     </View>
   );
 }
@@ -128,7 +128,7 @@ const styles = StyleSheet.create({
   search: { borderWidth: 1, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, fontSize: 16 },
   chips: { paddingVertical: 10 },
   count: { fontSize: 12, marginBottom: 6 },
-  row: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12, gap: 12 },
+  row: { flexDirection: 'row', alignItems: 'flex-start', paddingHorizontal: 16, paddingVertical: 12, gap: 8 },
   rowMain: { flex: 1 },
   name: { fontSize: 16, fontWeight: '600' },
   where: { fontSize: 13, marginTop: 2 },

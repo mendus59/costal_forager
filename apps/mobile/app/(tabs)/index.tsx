@@ -1,10 +1,10 @@
 import { localDateKey, SPECIES, type SpeciesId } from '@costal-forager/core';
 import { useRouter } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
-import { ActivityIndicator, ScrollView, StyleSheet } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet } from 'react-native';
 
 import { Chip } from '@/components/Badges';
-import { Text, View } from '@/components/Themed';
+import { Text, View, useThemeColor } from '@/components/Themed';
 import { BeachMap } from '@/components/map/BeachMap';
 import type { MapData } from '@/components/map/mapHtml';
 import { useColorScheme } from '@/components/useColorScheme';
@@ -17,10 +17,24 @@ const DRAW_ORDER = { unknown: 0, closed: 1, caution: 2, open: 3 } as const;
 
 export default function MapScreen() {
   const beaches = useBeaches();
-  const { favoriteSpecies } = useUser();
+  const { favoriteSpecies, favoriteBeaches, toggleBeach } = useUser();
   const router = useRouter();
   const dark = useColorScheme() === 'dark';
+  const border = useThemeColor('border');
   const [species, setSpecies] = useState<SpeciesId | null>(null);
+  const [favoritesOnly, setFavoritesOnly] = useState(false);
+  // Statuses switched off by tapping them in the legend.
+  const [hidden, setHidden] = useState<ReadonlySet<MapState>>(new Set());
+  const toggleState = useCallback(
+    (k: MapState) =>
+      setHidden((h) => {
+        const next = new Set(h);
+        if (next.has(k)) next.delete(k);
+        else next.add(k);
+        return next;
+      }),
+    [],
+  );
   const today = localDateKey(new Date());
 
   // Favorite species first, then the rest, so every species can be picked.
@@ -34,9 +48,11 @@ export default function MapScreen() {
     const placed: { state: Exclude<MapState, 'absent'>; point: MapData['points'][number] }[] = [];
     for (const b of beaches.data ?? []) {
       if (!b.location) continue;
+      const favorite = favoriteBeaches.includes(b.bidn);
+      if (favoritesOnly && !favorite) continue;
       const state = mapState(b, species, today);
       counts[state]++;
-      if (state === 'absent') continue;
+      if (state === 'absent' || hidden.has(state)) continue;
       placed.push({
         state,
         point: {
@@ -46,14 +62,18 @@ export default function MapScreen() {
           lng: b.location.lng,
           color: MAP_STATE_STYLE[state].color,
           label: mapLabel(state, species),
+          favorite,
         },
       });
     }
-    // Draw open beaches last so they sit on top where markers overlap.
-    placed.sort((a, b) => DRAW_ORDER[a.state] - DRAW_ORDER[b.state]);
+    // Draw favorites, then open beaches, last so they sit on top where markers overlap.
+    placed.sort(
+      (a, b) =>
+        Number(a.point.favorite) - Number(b.point.favorite) || DRAW_ORDER[a.state] - DRAW_ORDER[b.state],
+    );
     const points = placed.map((p) => p.point);
     return { data: { points, dark } satisfies MapData, counts };
-  }, [beaches.data, species, today, dark]);
+  }, [beaches.data, species, today, dark, favoritesOnly, favoriteBeaches, hidden]);
 
   const open = useCallback(
     (bidn: string) => router.push({ pathname: '/beach/[bidn]', params: { bidn } }),
@@ -64,7 +84,8 @@ export default function MapScreen() {
     <View style={styles.page}>
       <View style={styles.controls}>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
-          <Chip label="All beaches" selected={species === null} onPress={() => setSpecies(null)} />
+          <Chip label="★ Favorites" selected={favoritesOnly} onPress={() => setFavoritesOnly((v) => !v)} />
+          <Chip label="All species" selected={species === null} onPress={() => setSpecies(null)} />
           {speciesChips.map((id) => (
             <Chip
               key={id}
@@ -76,22 +97,34 @@ export default function MapScreen() {
         </ScrollView>
         <Text muted style={styles.summary}>
           {beaches.data
-            ? species
-              ? `${counts.open + counts.caution} beaches open for ${speciesName(species).toLowerCase()} today`
-              : `${counts.open + counts.caution} of ${counts.open + counts.caution + counts.closed + counts.unknown} beaches open today`
+            ? favoritesOnly && favoriteBeaches.length === 0
+              ? 'No favorite beaches yet. Tap a beach, then its star, to add one.'
+              : species
+              ? `${counts.open + counts.caution} ${favoritesOnly ? 'favorite ' : ''}beaches open for ${speciesName(species).toLowerCase()} today`
+              : `${counts.open + counts.caution} of ${counts.open + counts.caution + counts.closed + counts.unknown} ${favoritesOnly ? 'favorite ' : ''}beaches open today`
             : ' '}
         </Text>
         <View style={styles.legend}>
           {(Object.keys(MAP_STATE_STYLE) as (keyof typeof MAP_STATE_STYLE)[])
             .filter((k) => k !== 'unknown' || counts.unknown > 0)
-            .map((k) => (
-            <View key={k} style={styles.legendItem}>
-              <View style={[styles.dot, { backgroundColor: MAP_STATE_STYLE[k].color }]} />
-              <Text muted style={styles.legendText}>
-                {MAP_STATE_STYLE[k].label} ({counts[k]})
-              </Text>
-            </View>
-          ))}
+            .map((k) => {
+              const on = !hidden.has(k);
+              return (
+                <Pressable
+                  key={k}
+                  hitSlop={6}
+                  accessibilityRole="checkbox"
+                  accessibilityState={{ checked: on }}
+                  accessibilityLabel={`Show ${MAP_STATE_STYLE[k].label.toLowerCase()} beaches`}
+                  onPress={() => toggleState(k)}
+                  style={[styles.legendItem, { borderColor: on ? MAP_STATE_STYLE[k].color : border }, !on && styles.legendOff]}>
+                  <View style={[styles.dot, { backgroundColor: on ? MAP_STATE_STYLE[k].color : 'transparent', borderColor: MAP_STATE_STYLE[k].color }]} />
+                  <Text muted style={[styles.legendText, !on && styles.legendTextOff]}>
+                    {MAP_STATE_STYLE[k].label} ({counts[k]})
+                  </Text>
+                </Pressable>
+              );
+            })}
         </View>
       </View>
 
@@ -99,7 +132,7 @@ export default function MapScreen() {
         <Text style={{ padding: 16 }}>Couldn't load beaches: {beaches.error}</Text>
       ) : (
         <View style={styles.mapWrap}>
-          <BeachMap data={data} onOpen={open} />
+          <BeachMap data={data} onOpen={open} onFavorite={toggleBeach} />
           {beaches.loading && !beaches.data ? <ActivityIndicator style={styles.spinner} /> : null}
         </View>
       )}
@@ -112,10 +145,20 @@ const styles = StyleSheet.create({
   controls: { paddingHorizontal: 16, paddingTop: 10 },
   chips: { paddingBottom: 2 },
   summary: { fontSize: 13, marginTop: 2 },
-  legend: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginTop: 6, marginBottom: 8 },
-  legendItem: { flexDirection: 'row', alignItems: 'center', gap: 5 },
-  dot: { width: 10, height: 10, borderRadius: 5 },
+  legend: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 6, marginBottom: 8 },
+  legendItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    borderWidth: 1,
+    borderRadius: 14,
+    paddingHorizontal: 9,
+    paddingVertical: 4,
+  },
+  legendOff: { opacity: 0.55 },
+  dot: { width: 10, height: 10, borderRadius: 5, borderWidth: 1.5 },
   legendText: { fontSize: 12 },
+  legendTextOff: { textDecorationLine: 'line-through' },
   mapWrap: { flex: 1 },
   spinner: { position: 'absolute', top: 24, alignSelf: 'center' },
 });
