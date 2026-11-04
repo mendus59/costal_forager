@@ -72,13 +72,14 @@ export default function BeachScreen() {
 
   return (
     <ScrollView contentContainerStyle={styles.page}>
-      <Stack.Screen
-        options={{ title: beach.name, headerRight: () => <FavoriteButton bidn={beach.bidn} name={beach.name} /> }}
-      />
+      <Stack.Screen options={{ title: beach.name }} />
 
       <View card>
         <View style={styles.head}>
-          <Text style={styles.h1}>{beach.name}</Text>
+          <View style={styles.title}>
+            <FavoriteButton bidn={beach.bidn} name={beach.name} />
+            <Text style={styles.h1}>{beach.name}</Text>
+          </View>
           <StatusBadge status={beach.status} />
         </View>
         <Text muted>{[beach.waterbody, beach.county && `${beach.county} County`].filter(Boolean).join(' · ')}</Text>
@@ -145,6 +146,7 @@ const styles = StyleSheet.create({
   page: { padding: 16, gap: 12, paddingBottom: 40 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   head: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 8, backgroundColor: 'transparent' },
+  title: { flexDirection: 'row', alignItems: 'center', gap: 8, flexShrink: 1, backgroundColor: 'transparent' },
   h1: { fontSize: 22, fontWeight: '700', flexShrink: 1 },
   h2: { fontSize: 18, fontWeight: '700', marginBottom: 4 },
   para: { fontSize: 14, marginTop: 8 },

@@ -17,10 +17,11 @@ const DRAW_ORDER = { unknown: 0, closed: 1, caution: 2, open: 3 } as const;
 
 export default function MapScreen() {
   const beaches = useBeaches();
-  const { favoriteSpecies } = useUser();
+  const { favoriteSpecies, favoriteBeaches, toggleBeach } = useUser();
   const router = useRouter();
   const dark = useColorScheme() === 'dark';
   const [species, setSpecies] = useState<SpeciesId | null>(null);
+  const [favoritesOnly, setFavoritesOnly] = useState(false);
   const today = localDateKey(new Date());
 
   // Favorite species first, then the rest, so every species can be picked.
@@ -34,6 +35,8 @@ export default function MapScreen() {
     const placed: { state: Exclude<MapState, 'absent'>; point: MapData['points'][number] }[] = [];
     for (const b of beaches.data ?? []) {
       if (!b.location) continue;
+      const favorite = favoriteBeaches.includes(b.bidn);
+      if (favoritesOnly && !favorite) continue;
       const state = mapState(b, species, today);
       counts[state]++;
       if (state === 'absent') continue;
@@ -46,14 +49,18 @@ export default function MapScreen() {
           lng: b.location.lng,
           color: MAP_STATE_STYLE[state].color,
           label: mapLabel(state, species),
+          favorite,
         },
       });
     }
-    // Draw open beaches last so they sit on top where markers overlap.
-    placed.sort((a, b) => DRAW_ORDER[a.state] - DRAW_ORDER[b.state]);
+    // Draw favorites, then open beaches, last so they sit on top where markers overlap.
+    placed.sort(
+      (a, b) =>
+        Number(a.point.favorite) - Number(b.point.favorite) || DRAW_ORDER[a.state] - DRAW_ORDER[b.state],
+    );
     const points = placed.map((p) => p.point);
     return { data: { points, dark } satisfies MapData, counts };
-  }, [beaches.data, species, today, dark]);
+  }, [beaches.data, species, today, dark, favoritesOnly, favoriteBeaches]);
 
   const open = useCallback(
     (bidn: string) => router.push({ pathname: '/beach/[bidn]', params: { bidn } }),
@@ -64,7 +71,8 @@ export default function MapScreen() {
     <View style={styles.page}>
       <View style={styles.controls}>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
-          <Chip label="All beaches" selected={species === null} onPress={() => setSpecies(null)} />
+          <Chip label="★ Favorites" selected={favoritesOnly} onPress={() => setFavoritesOnly((v) => !v)} />
+          <Chip label="All species" selected={species === null} onPress={() => setSpecies(null)} />
           {speciesChips.map((id) => (
             <Chip
               key={id}
@@ -76,9 +84,11 @@ export default function MapScreen() {
         </ScrollView>
         <Text muted style={styles.summary}>
           {beaches.data
-            ? species
-              ? `${counts.open + counts.caution} beaches open for ${speciesName(species).toLowerCase()} today`
-              : `${counts.open + counts.caution} of ${counts.open + counts.caution + counts.closed + counts.unknown} beaches open today`
+            ? favoritesOnly && favoriteBeaches.length === 0
+              ? 'No favorite beaches yet. Tap a beach, then its star, to add one.'
+              : species
+              ? `${counts.open + counts.caution} ${favoritesOnly ? 'favorite ' : ''}beaches open for ${speciesName(species).toLowerCase()} today`
+              : `${counts.open + counts.caution} of ${counts.open + counts.caution + counts.closed + counts.unknown} ${favoritesOnly ? 'favorite ' : ''}beaches open today`
             : ' '}
         </Text>
         <View style={styles.legend}>
@@ -99,7 +109,7 @@ export default function MapScreen() {
         <Text style={{ padding: 16 }}>Couldn't load beaches: {beaches.error}</Text>
       ) : (
         <View style={styles.mapWrap}>
-          <BeachMap data={data} onOpen={open} />
+          <BeachMap data={data} onOpen={open} onFavorite={toggleBeach} />
           {beaches.loading && !beaches.data ? <ActivityIndicator style={styles.spinner} /> : null}
         </View>
       )}

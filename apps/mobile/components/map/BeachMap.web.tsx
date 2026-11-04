@@ -3,11 +3,21 @@ import { createElement, useEffect, useRef, useState } from 'react';
 import { MAP_HTML, MAP_SOURCE, parseMapMessage, type MapData } from './mapHtml';
 
 /** Web: the same Leaflet page in an iframe, so web and mobile share one map. */
-export function BeachMap({ data, onOpen }: { data: MapData; onOpen(bidn: string): void }) {
+export function BeachMap({
+  data,
+  onOpen,
+  onFavorite,
+}: {
+  data: MapData;
+  onOpen(bidn: string): void;
+  onFavorite(bidn: string): void;
+}) {
   const ref = useRef<HTMLIFrameElement | null>(null);
   const [ready, setReady] = useState(false);
   const onOpenRef = useRef(onOpen);
   onOpenRef.current = onOpen;
+  const onFavoriteRef = useRef(onFavorite);
+  onFavoriteRef.current = onFavorite;
 
   useEffect(() => {
     const listen = (e: MessageEvent) => {
@@ -15,6 +25,7 @@ export function BeachMap({ data, onOpen }: { data: MapData; onOpen(bidn: string)
       const msg = parseMapMessage(e.data);
       if (msg?.type === 'ready') setReady(true);
       else if (msg?.type === 'open') onOpenRef.current(msg.bidn);
+      else if (msg?.type === 'favorite') onFavoriteRef.current(msg.bidn);
     };
     window.addEventListener('message', listen);
     return () => window.removeEventListener('message', listen);
