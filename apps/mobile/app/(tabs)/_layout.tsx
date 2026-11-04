@@ -29,7 +29,16 @@ export default function TabLayout() {
         options={{
           title: 'Beaches',
           tabBarIcon: ({ color }) => (
-            <SymbolView name={{ ios: 'map', android: 'map', web: 'map' }} tintColor={color} size={26} />
+            <SymbolView name={{ ios: 'list.bullet', android: 'list', web: 'list' }} tintColor={color} size={26} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="map"
+        options={{
+          title: 'Map',
+          tabBarIcon: ({ color }) => (
+            <SymbolView name={{ ios: 'mappin.and.ellipse', android: 'pin_drop', web: 'pin_drop' }} tintColor={color} size={26} />
           ),
         }}
       />
