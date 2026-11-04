@@ -35,6 +35,38 @@
           "resizeMode": "contain",
           "backgroundColor": "#ffffff"
         }
+      ],
+      [
+        "expo-notifications",
+        {
+          "color": "#1b7f4c"
+        }
+      ],
+      "expo-background-task",
+      [
+        "expo-widgets",
+        {
+          "enableAndroid": true,
+          "groupIdentifier": "group.com.mendus59.coastalforager",
+          "widgets": [
+            {
+              "name": "DayQuality",
+              "displayName": "Shellfishing day",
+              "description": "Today's best rating at your favorite beaches.",
+              "ios": {
+                "supportedFamilies": [
+                  "systemSmall",
+                  "systemMedium"
+                ]
+              },
+              "android": {
+                "targetCellWidth": 2,
+                "targetCellHeight": 2,
+                "resizeMode": "both"
+              }
+            }
+          ]
+        }
       ]
     ],
     "experiments": {

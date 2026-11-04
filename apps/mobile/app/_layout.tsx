@@ -6,7 +6,9 @@ import 'react-native-reanimated';
 
 import { useColorScheme } from '@/components/useColorScheme';
 import Colors from '@/constants/Colors';
+import { listenForTaps } from '@/lib/notifications';
 import { UserProvider } from '@/lib/store';
+import { WidgetSync } from '@/lib/widget-sync';
 
 export {
   // Catch any errors thrown by the Layout component.
@@ -39,6 +41,7 @@ export default function RootLayout() {
 function RootLayoutNav() {
   const scheme = useColorScheme();
   const base = scheme === 'dark' ? DarkTheme : DefaultTheme;
+  useEffect(() => listenForTaps(), []);
   const theme = {
     ...base,
     colors: { ...base.colors, primary: Colors[scheme].tint, background: Colors[scheme].background, card: Colors[scheme].card },
@@ -50,7 +53,9 @@ function RootLayoutNav() {
         <Stack>
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
           <Stack.Screen name="beach/[bidn]" options={{ title: 'Beach' }} />
+          <Stack.Screen name="sign-in" options={{ title: 'Sign in', presentation: 'modal' }} />
         </Stack>
+        <WidgetSync />
       </ThemeProvider>
     </UserProvider>
   );

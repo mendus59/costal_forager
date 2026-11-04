@@ -18,8 +18,10 @@ Research behind it (species, tide heights, beaches, data sources):
 | `packages/core` | Shared TypeScript: species table, NOAA/DOH/WDFW parsers, sun times, scoring and "next ideal day" search. Runs in Node, Deno and React Native. |
 | `supabase/migrations` | Postgres + PostGIS schema with row-level security. |
 | `supabase/seed.sql` | Species seed, generated from `packages/core/src/species.ts` (`npm run gen:seed`). |
-| `supabase/functions` | Scheduled sync jobs (Deno edge functions). |
-| `apps/mobile` | Expo app (iOS, Android, web): Today, Beaches, Beach detail, Settings. |
+| `supabase/functions` | Scheduled sync jobs and the `send-alerts` push job (Deno edge functions). |
+| `supabase/cron.sql` | Schedules every job with `pg_cron` + `pg_net`. |
+| `scripts/deploy-supabase.sh` | One-shot backend deploy: schema, seed, functions, first sync, schedules. |
+| `apps/mobile` | Expo app (iOS, Android, web): Today, Beaches, Beach detail, Settings, Sign in, home-screen widget. |
 
 ## Data sources
 
@@ -30,6 +32,7 @@ Research behind it (species, tide heights, beaches, data sources):
 | Razor clam dig days | WDFW razor clam page (no feed; parsed) | `sync-razor-digs` | Daily |
 | Which species are common on each beach | WDFW beach page "Harvest profile" (parsed) | `sync-beach-profiles` | Every 30 min, 25 beaches a batch |
 | Sunrise and sunset | Computed in `packages/core/src/sun.ts` | none | n/a |
+| Good-day push alerts | Users' favorites and settings + the tables above, sent with the Expo push API | `send-alerts` | Every 15 min |
 
 ## How a day is rated
 
@@ -57,37 +60,64 @@ npm run gen:seed    # after editing species.ts
 
 ```sh
 cd apps/mobile
-npx expo start          # press w for web, or scan the QR code with Expo Go
+npx expo start          # press w for web
 npx expo export --platform web   # static single-page build in dist/
 ```
 
-Until the backend is connected, the app reads the DOH layer and NOAA tides
-directly and caches them on the device. Favorites and settings are stored
-on the device too. Razor clam dig days need the backend's `sync-razor-digs`
-job, so razor clams show as closed in the app until then.
+The app reads from Supabase and falls back to the DOH layer and NOAA directly
+when the backend is unreachable (razor clam digs and harvest profiles need the
+backend). Everything is cached on the device, so it opens offline.
+
+Signing in is optional: email plus a 6-digit code. Signed-in users get their
+favorites and settings on every device and can turn on alerts. On sign-in,
+favorites from the device and the account are merged; settings come from the
+account if it has ever saved any.
+
+Push alerts, the home-screen widget and background refresh need a
+**development build** (they don't run in Expo Go):
+
+```sh
+npm i -g eas-cli
+cd apps/mobile
+eas init                       # creates the EAS project and writes its projectId to app.json
+eas build --profile development --platform android   # or ios
+```
+
+* **iOS** needs an Apple Developer account (push certificates, the widget
+  extension and the `group.com.mendus59.coastalforager` App Group). EAS sets
+  these up on the first build.
+* **Android** push needs an FCM key uploaded to EAS
+  (`eas credentials`, then "Google Service Account Key for FCM V1").
+* The widget ("Shellfishing day", small and medium) shows today's best rating
+  across favorite beaches and species. iOS gets a week of entries that roll
+  over at midnight; Android gets a snapshot, refreshed by a background task
+  every few hours and whenever the app opens.
 
 ### Supabase
 
+Project `sngnpyvxufllutqrwqjw`. The app has its URL and anon key built in
+(`apps/mobile/lib/supabase.ts`; `EXPO_PUBLIC_SUPABASE_URL` and
+`EXPO_PUBLIC_SUPABASE_ANON_KEY` override them). The anon key is public by
+design; row-level security protects user data.
+
+Deploy everything with:
+
 ```sh
-supabase link --project-ref <ref>
-supabase db push                      # applies migrations
-psql "$DATABASE_URL" -f supabase/seed.sql
-supabase functions deploy sync-doh sync-tides sync-razor-digs sync-beach-profiles
+SUPABASE_ACCESS_TOKEN=... SUPABASE_DB_PASSWORD=... SUPABASE_DB_URL=... \
+SUPABASE_SERVICE_ROLE_KEY=... scripts/deploy-supabase.sh
 ```
 
-The sync functions only accept the service role key as a bearer token.
-Schedule them with `pg_cron` and `pg_net` (SQL editor; store the key in Vault
-as `service_role_key`):
+It links the project, applies migrations, loads `supabase/seed.sql`, deploys
+the five functions, runs the first `sync-doh`, `sync-tides` and
+`sync-razor-digs`, stores `project_url` and `service_role_key` in Vault and
+runs `supabase/cron.sql` to schedule the jobs. The functions only accept the
+service role key as a bearer token. `send-alerts` also takes `?dry=1` to
+build alerts without sending, and `?at=<ISO time>` to replay a slot.
 
-```sql
-select cron.schedule('sync-doh', '7 * * * *', $$
-  select net.http_post(
-    url := 'https://<ref>.supabase.co/functions/v1/sync-doh',
-    headers := jsonb_build_object('Authorization', 'Bearer ' ||
-      (select decrypted_secret from vault.decrypted_secrets where name = 'service_role_key')));
-$$);
--- Repeat with: sync-tides '0 9 * * 1', sync-razor-digs '0 15 * * *',
--- sync-beach-profiles '*/30 * * * *'
-```
+Two settings in the dashboard:
 
-Run `sync-doh` first (it creates the beaches), then `sync-tides`.
+1. **Authentication > Emails > Magic Link** template: include the code, for
+   example `<h2>Your Coastal Forager code</h2><p>{{ .Token }}</p>`. Without
+   `{{ .Token }}` users get a link instead of a code.
+2. **Authentication > Providers > Email**: keep "Enable email signup" on.
+   The default email sender is rate-limited; add custom SMTP before launch.

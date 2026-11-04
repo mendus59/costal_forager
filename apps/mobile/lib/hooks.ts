@@ -1,4 +1,4 @@
-import type { TideEvent, TideStation } from '@costal-forager/core';
+import type { TideEvent } from '@costal-forager/core';
 import { useCallback, useEffect, useState } from 'react';
 import { loadBeaches, loadTides, stationFor, type Beach } from './data';
 
@@ -48,7 +48,7 @@ export function useBeaches(): Loadable<Beach[]> {
 }
 
 export interface BeachTides {
-  station: TideStation;
+  station: { id: string; name: string };
   km: number;
   tides: TideEvent[];
 }
@@ -60,14 +60,14 @@ export function useBeachTides(beach: Beach | null | undefined): Loadable<BeachTi
     if (!beach) return null;
     const hit = await stationFor(beach);
     if (!hit) return null;
-    let p = tidesMemo.get(hit.station.id);
+    let p = tidesMemo.get(hit.id);
     if (!p) {
-      p = loadTides(hit.station.id).catch((e) => {
-        tidesMemo.delete(hit.station.id);
+      p = loadTides(hit.id).catch((e) => {
+        tidesMemo.delete(hit.id);
         throw e;
       });
-      tidesMemo.set(hit.station.id, p);
+      tidesMemo.set(hit.id, p);
     }
-    return { station: hit.station, km: hit.km, tides: await p };
+    return { station: { id: hit.id, name: hit.name }, km: hit.km, tides: await p };
   }, [beach?.bidn]);
 }
