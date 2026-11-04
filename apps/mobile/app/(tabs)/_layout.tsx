@@ -1,5 +1,6 @@
 import { SymbolView } from 'expo-symbols';
 import { Tabs } from 'expo-router';
+import { Platform } from 'react-native';
 
 import { useClientOnlyValue } from '@/components/useClientOnlyValue';
 import { useColorScheme } from '@/components/useColorScheme';
@@ -12,6 +13,9 @@ export default function TabLayout() {
     <Tabs
       screenOptions={{
         tabBarActiveTintColor: Colors[colorScheme].tint,
+        // On the web the tab bar sits at the top of the page, like a site nav bar.
+        // The phone apps keep it at the bottom, where thumbs can reach it.
+        tabBarPosition: Platform.OS === 'web' ? 'top' : 'bottom',
         // Disable the static render of the header on web to prevent a hydration error.
         headerShown: useClientOnlyValue(false, true),
       }}>
