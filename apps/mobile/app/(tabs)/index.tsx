@@ -1,10 +1,10 @@
 import { localDateKey, SPECIES, type SpeciesId } from '@costal-forager/core';
 import { useRouter } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
-import { ActivityIndicator, ScrollView, StyleSheet } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet } from 'react-native';
 
 import { Chip } from '@/components/Badges';
-import { Text, View } from '@/components/Themed';
+import { Text, View, useThemeColor } from '@/components/Themed';
 import { BeachMap } from '@/components/map/BeachMap';
 import type { MapData } from '@/components/map/mapHtml';
 import { useColorScheme } from '@/components/useColorScheme';
@@ -20,8 +20,21 @@ export default function MapScreen() {
   const { favoriteSpecies, favoriteBeaches, toggleBeach } = useUser();
   const router = useRouter();
   const dark = useColorScheme() === 'dark';
+  const border = useThemeColor('border');
   const [species, setSpecies] = useState<SpeciesId | null>(null);
   const [favoritesOnly, setFavoritesOnly] = useState(false);
+  // Statuses switched off by tapping them in the legend.
+  const [hidden, setHidden] = useState<ReadonlySet<MapState>>(new Set());
+  const toggleState = useCallback(
+    (k: MapState) =>
+      setHidden((h) => {
+        const next = new Set(h);
+        if (next.has(k)) next.delete(k);
+        else next.add(k);
+        return next;
+      }),
+    [],
+  );
   const today = localDateKey(new Date());
 
   // Favorite species first, then the rest, so every species can be picked.
@@ -39,7 +52,7 @@ export default function MapScreen() {
       if (favoritesOnly && !favorite) continue;
       const state = mapState(b, species, today);
       counts[state]++;
-      if (state === 'absent') continue;
+      if (state === 'absent' || hidden.has(state)) continue;
       placed.push({
         state,
         point: {
@@ -60,7 +73,7 @@ export default function MapScreen() {
     );
     const points = placed.map((p) => p.point);
     return { data: { points, dark } satisfies MapData, counts };
-  }, [beaches.data, species, today, dark, favoritesOnly, favoriteBeaches]);
+  }, [beaches.data, species, today, dark, favoritesOnly, favoriteBeaches, hidden]);
 
   const open = useCallback(
     (bidn: string) => router.push({ pathname: '/beach/[bidn]', params: { bidn } }),
@@ -94,14 +107,24 @@ export default function MapScreen() {
         <View style={styles.legend}>
           {(Object.keys(MAP_STATE_STYLE) as (keyof typeof MAP_STATE_STYLE)[])
             .filter((k) => k !== 'unknown' || counts.unknown > 0)
-            .map((k) => (
-            <View key={k} style={styles.legendItem}>
-              <View style={[styles.dot, { backgroundColor: MAP_STATE_STYLE[k].color }]} />
-              <Text muted style={styles.legendText}>
-                {MAP_STATE_STYLE[k].label} ({counts[k]})
-              </Text>
-            </View>
-          ))}
+            .map((k) => {
+              const on = !hidden.has(k);
+              return (
+                <Pressable
+                  key={k}
+                  hitSlop={6}
+                  accessibilityRole="checkbox"
+                  accessibilityState={{ checked: on }}
+                  accessibilityLabel={`Show ${MAP_STATE_STYLE[k].label.toLowerCase()} beaches`}
+                  onPress={() => toggleState(k)}
+                  style={[styles.legendItem, { borderColor: on ? MAP_STATE_STYLE[k].color : border }, !on && styles.legendOff]}>
+                  <View style={[styles.dot, { backgroundColor: on ? MAP_STATE_STYLE[k].color : 'transparent', borderColor: MAP_STATE_STYLE[k].color }]} />
+                  <Text muted style={[styles.legendText, !on && styles.legendTextOff]}>
+                    {MAP_STATE_STYLE[k].label} ({counts[k]})
+                  </Text>
+                </Pressable>
+              );
+            })}
         </View>
       </View>
 
@@ -122,10 +145,20 @@ const styles = StyleSheet.create({
   controls: { paddingHorizontal: 16, paddingTop: 10 },
   chips: { paddingBottom: 2 },
   summary: { fontSize: 13, marginTop: 2 },
-  legend: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginTop: 6, marginBottom: 8 },
-  legendItem: { flexDirection: 'row', alignItems: 'center', gap: 5 },
-  dot: { width: 10, height: 10, borderRadius: 5 },
+  legend: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 6, marginBottom: 8 },
+  legendItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    borderWidth: 1,
+    borderRadius: 14,
+    paddingHorizontal: 9,
+    paddingVertical: 4,
+  },
+  legendOff: { opacity: 0.55 },
+  dot: { width: 10, height: 10, borderRadius: 5, borderWidth: 1.5 },
   legendText: { fontSize: 12 },
+  legendTextOff: { textDecorationLine: 'line-through' },
   mapWrap: { flex: 1 },
   spinner: { position: 'absolute', top: 24, alignSelf: 'center' },
 });
