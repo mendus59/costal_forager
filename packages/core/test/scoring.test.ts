@@ -174,3 +174,23 @@ describe("search and summaries", () => {
     expect(notificationText(best!, "Maple Hollow")).toBe("Today is a great day for Manila clams at Maple Hollow!");
   });
 });
+
+describe("fast local time", () => {
+  it("matches Intl across a year including DST changes", async () => {
+    const { localParts } = await import("../src/time.ts");
+    const f = new Intl.DateTimeFormat("en-US", {
+      timeZone: "America/Los_Angeles", hourCycle: "h23", year: "numeric", month: "2-digit",
+      day: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit",
+    });
+    const start = Date.UTC(2026, 0, 1);
+    for (let t = start; t < start + 366 * 86400000; t += 7 * 60000 + 13000) {
+      const d = new Date(t);
+      const want: Record<string, number> = {};
+      for (const p of f.formatToParts(d)) if (p.type !== "literal") want[p.type] = Number(p.value);
+      const got = localParts(d);
+      expect([got.year, got.month, got.day, got.hour, got.minute, got.second]).toEqual([
+        want.year, want.month, want.day, want.hour, want.minute, want.second,
+      ]);
+    }
+  });
+});

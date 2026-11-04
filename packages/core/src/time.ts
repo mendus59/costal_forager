@@ -31,7 +31,15 @@ export interface LocalParts {
   second: number;
 }
 
-export function localParts(date: Date, tz = WA_TZ): LocalParts {
+// Intl formatting is slow (especially on Hermes, React Native's engine), and
+// scoring asks for local dates thousands of times. Zone offsets only change on
+// quarter-hour boundaries, so each zone's offset is looked up once per
+// 15-minute bucket and everything else is plain UTC arithmetic.
+const BUCKET_MS = 15 * 60000;
+const MAX_CACHED = 200000;
+const offsetCache = new Map<string, Map<number, number>>();
+
+function intlParts(date: Date, tz: string): LocalParts {
   const out: Record<string, number> = {};
   for (const p of formatter(tz).formatToParts(date)) {
     if (p.type !== "literal") out[p.type] = Number(p.value);
@@ -43,6 +51,36 @@ export function localParts(date: Date, tz = WA_TZ): LocalParts {
     hour: out.hour,
     minute: out.minute,
     second: out.second,
+  };
+}
+
+/** Zone offset (local minus UTC) in milliseconds at the instant, cached per bucket. */
+function offsetMs(t: number, tz: string): number {
+  let byBucket = offsetCache.get(tz);
+  if (!byBucket) offsetCache.set(tz, (byBucket = new Map()));
+  const bucket = Math.floor(t / BUCKET_MS);
+  let off = byBucket.get(bucket);
+  if (off === undefined) {
+    const at = bucket * BUCKET_MS;
+    const p = intlParts(new Date(at), tz);
+    off = Date.UTC(p.year, p.month - 1, p.day, p.hour, p.minute, p.second) - at;
+    if (byBucket.size >= MAX_CACHED) byBucket.clear();
+    byBucket.set(bucket, off);
+  }
+  return off;
+}
+
+export function localParts(date: Date, tz = WA_TZ): LocalParts {
+  const t = date.getTime();
+  if (!Number.isFinite(t)) return intlParts(date, tz);
+  const l = new Date(Math.floor(t / 1000) * 1000 + offsetMs(t, tz));
+  return {
+    year: l.getUTCFullYear(),
+    month: l.getUTCMonth() + 1,
+    day: l.getUTCDate(),
+    hour: l.getUTCHours(),
+    minute: l.getUTCMinutes(),
+    second: l.getUTCSeconds(),
   };
 }
 

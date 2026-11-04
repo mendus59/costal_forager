@@ -47,11 +47,9 @@ export async function buildWidgetEntries(
     .slice(0, MAX_BEACHES);
   if (favs.length === 0 || input.favoriteSpecies.length === 0) return [{ date: now, props: EMPTY_WIDGET }];
 
-  const tides = new Map<string, TideEvent[]>();
-  for (const b of favs) {
-    const id = b.station!.id;
-    if (!tides.has(id)) tides.set(id, (await tidesFor(id)) ?? []);
-  }
+  const ids = [...new Set(favs.map((b) => b.station!.id))];
+  const loaded = await Promise.all(ids.map(async (id) => [id, (await tidesFor(id)) ?? []] as const));
+  const tides = new Map<string, TideEvent[]>(loaded);
 
   // Best pick for each day, across favorite beaches.
   const best: (Pick | null)[] = [];

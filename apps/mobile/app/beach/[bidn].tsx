@@ -109,7 +109,7 @@ export default function BeachScreen() {
             Tides from NOAA {tides.data.station.name} ({tides.data.km.toFixed(0)} km away)
           </Text>
         )}
-        {tides.loading && <ActivityIndicator style={{ marginVertical: 8 }} />}
+        {tides.loading && !tides.data && <ActivityIndicator style={{ marginVertical: 8 }} />}
         {tides.error && <Text muted>Tides unavailable: {tides.error}</Text>}
         {summary.map(({ today: t, next }) => (
           <View key={t.speciesId} style={styles.speciesBlock}>

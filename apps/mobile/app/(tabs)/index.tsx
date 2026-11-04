@@ -96,8 +96,8 @@ function FavoriteCard({ beach, today }: { beach: Beach; today: string }) {
             <Text style={styles.h2}>{beach.name}</Text>
             {best && <RatingBadge rating={best.rating} large />}
           </View>
-          {tides.loading && <ActivityIndicator style={{ marginVertical: 8 }} />}
-          {tides.error && <Text muted>Tides unavailable: {tides.error}</Text>}
+          {tides.loading && !tides.data && <ActivityIndicator style={{ marginVertical: 8 }} />}
+          {tides.error && !tides.data && <Text muted>Tides unavailable: {tides.error}</Text>}
           {species.length === 0 && <Text muted>None of your species live on this kind of beach.</Text>}
           {best && <DayScoreLine score={best} title="Today" />}
           {next.length > 0 && (
