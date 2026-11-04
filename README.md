@@ -94,6 +94,26 @@ eas build --profile development --platform android   # or ios
   over at midnight; Android gets a snapshot, refreshed by a background task
   every few hours and whenever the app opens.
 
+#### Android APK without an Expo account
+
+The **Android APK** workflow (`.github/workflows/android-apk.yml`) runs
+`expo prebuild` and Gradle on every push to `main` that touches the app, or
+from Actions > Android APK > Run workflow. The APK is published to the
+`android-latest` pre-release on GitHub; open that page on the phone, download
+`coastal-forager.apk` and allow installs from the browser when Android asks.
+It is signed with the template debug key, so new builds install over old ones,
+but it can't go to the Play Store. The widget, background refresh and local
+data work in it; push alerts don't until `eas init` adds a project ID and an
+FCM key is set up.
+
+To build locally (needs the Android SDK and JDK 17+):
+
+```sh
+cd apps/mobile
+npx expo prebuild --platform android
+cd android && ./gradlew assembleRelease   # app/build/outputs/apk/release/app-release.apk
+```
+
 ### Supabase
 
 Project `sngnpyvxufllutqrwqjw`. The app has its URL and anon key built in
