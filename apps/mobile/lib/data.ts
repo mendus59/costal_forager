@@ -112,7 +112,8 @@ async function selectAll<T>(build: (from: number, to: number) => PromiseLike<{ d
 
 
 async function fetchSupabase(): Promise<{ beaches: BeachRow[]; digs: DigRow[] }> {
-  const beaches = await selectAll<BeachRow>((from, to) =>
+  // The beach list and the razor dig dates are independent, so fetch them together.
+  const beachesP = selectAll<BeachRow>((from, to) =>
     supabase
       .from('beaches')
       .select(BEACH_SELECT)
@@ -120,12 +121,13 @@ async function fetchSupabase(): Promise<{ beaches: BeachRow[]; digs: DigRow[] }>
       .order('bidn')
       .range(from, to) as unknown as PromiseLike<{ data: BeachRow[] | null; error: unknown }>,
   );
-  if (beaches.length === 0) throw new Error('Backend has no beaches yet');
-  const { data: digs, error } = await supabase
+  const digsP = supabase
     .from('razor_digs')
     .select('dig_date, razor_beach')
     .eq('cancelled', false)
     .gte('dig_date', addDays(localDateKey(new Date()), -1));
+  const [beaches, { data: digs, error }] = await Promise.all([beachesP, digsP]);
+  if (beaches.length === 0) throw new Error('Backend has no beaches yet');
   if (error) throw new Error(error.message);
   return { beaches, digs: (digs ?? []) as DigRow[] };
 }
@@ -239,13 +241,10 @@ async function fetchTidesSupabase(stationId: string, begin: string, end: string)
 }
 
 async function fetchTidesNoaa(stationId: string, begin: string, end: string): Promise<StoredTide[]> {
-  const all: StoredTide[] = [];
-  for (const [b, e] of dateChunks(begin, end)) {
-    for (const t of parsePredictions(await getJson(predictionsUrl(stationId, b, e)))) {
-      all.push([t.time.toISOString(), t.heightFt, t.type]);
-    }
-  }
-  return all;
+  const chunks = await Promise.all(
+    dateChunks(begin, end).map(async ([b, e]) => parsePredictions(await getJson(predictionsUrl(stationId, b, e)))),
+  );
+  return chunks.flat().map((t): StoredTide => [t.time.toISOString(), t.heightFt, t.type]);
 }
 
 const revive = (stored: StoredTide[]): TideEvent[] =>

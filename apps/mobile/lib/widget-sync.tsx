@@ -59,9 +59,10 @@ export function WidgetSync() {
     if (!ready || !beaches.data) return;
     const input = { favoriteBeaches, favoriteSpecies, prefs };
     const run = () => publish(input, beaches.data!).catch(() => {});
-    run();
+    // Let the screens render first; the widget can wait a moment.
+    const first = setTimeout(run, 1500);
     const sub = AppState.addEventListener('change', (s) => s === 'active' && run());
-    return () => sub.remove();
+    return () => (clearTimeout(first), sub.remove());
   }, [ready, beaches.data, favoriteBeaches, favoriteSpecies, prefs]);
 
   return null;

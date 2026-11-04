@@ -205,7 +205,30 @@ function scoreLow(sp: Species, low: TideEvent, accept: Interval, prefs: ScoringP
 
 /** Low tides whose time falls on the local date. */
 export function lowsOn(key: string, tides: readonly TideEvent[], tz = WA_TZ): TideEvent[] {
-  return tides.filter((e) => e.type === "L" && localDateKey(e.time, tz) === key);
+  return lowsIndex(tides, tz).get(key) ?? [];
+}
+
+// Scoring looks up one day at a time across hundreds of days, so each tide
+// list is grouped by local date once instead of filtered on every call.
+// (Tide lists are treated as immutable once scored.)
+const lowsIndexes = new WeakMap<readonly TideEvent[], Map<string, Map<string, TideEvent[]>>>();
+
+function lowsIndex(tides: readonly TideEvent[], tz: string): Map<string, TideEvent[]> {
+  let byTz = lowsIndexes.get(tides);
+  if (!byTz) lowsIndexes.set(tides, (byTz = new Map()));
+  let index = byTz.get(tz);
+  if (!index) {
+    index = new Map();
+    for (const e of tides) {
+      if (e.type !== "L") continue;
+      const k = localDateKey(e.time, tz);
+      const list = index.get(k);
+      if (list) list.push(e);
+      else index.set(k, [e]);
+    }
+    byTz.set(tz, index);
+  }
+  return index;
 }
 
 export function scoreDay(

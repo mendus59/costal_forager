@@ -79,7 +79,7 @@ export default function BeachesScreen() {
 
       {beaches.loading && !beaches.data ? (
         <ActivityIndicator style={{ marginTop: 24 }} />
-      ) : beaches.error ? (
+      ) : beaches.error && !beaches.data ? (
         <Text style={{ padding: 16 }}>Couldn't load beaches: {beaches.error}</Text>
       ) : (
         <FlatList
