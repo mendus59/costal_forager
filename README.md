@@ -1,5 +1,16 @@
 # Coastal Forager
 
+<!-- site-summary:start -->
+<!-- This section is this project's card on https://mendus59.github.io and is copied there daily.
+     Keep it true of what's on main: one plain-text summary line (max 160 characters), then 1-6 short bullets.
+     See CLAUDE.md ("Site summary"). -->
+Where and when to go shellfishing in Washington State.
+
+- Shows which public beaches are safe and in season for each species, from WA DOH, WDFW and NOAA data synced on a schedule.
+- Finds the next day the tide is low enough during the hours you want to be out, and rates each day.
+- Push alerts for good days at your favorite beaches, plus a home-screen widget.
+<!-- site-summary:end -->
+
 Where and when to go shellfishing in Washington State. The app shows which
 public beaches are safe and in season for each species, and finds the next
 day when the tide is low enough during the hours you want to be out.
