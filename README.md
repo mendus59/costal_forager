@@ -108,7 +108,9 @@ The **Android APK** workflow (`.github/workflows/android-apk.yml`) runs
 `expo prebuild` and Gradle on every push to `main` that touches the app, or
 from Actions > Android APK > Run workflow. The APK is published to the
 `android-latest` pre-release on GitHub; open that page on the phone, download
-`coastal-forager.apk` and allow installs from the browser when Android asks.
+`coastal-forager-<version>.apk` (app.json's version plus the build number, such
+as `coastal-forager-1.0.0.42.apk`) and allow installs from the browser when
+Android asks.
 It is signed with the template debug key, so new builds install over old ones,
 but it can't go to the Play Store. The widget, background refresh and local
 data work in it; push alerts don't until `eas init` adds a project ID and an

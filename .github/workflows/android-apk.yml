@@ -54,6 +54,15 @@ jobs:
           CI: 1
         run: npx expo prebuild --platform android --no-install
 
+      # The version is app.json's "version" plus the run number, e.g. 1.0.0.42,
+      # and appears in the APK's file name and in Android's app info.
+      - name: Work out the version
+        id: version
+        run: |
+          v="$(node -p "require('./apps/mobile/app.json').expo.version").${{ github.run_number }}"
+          echo "version=$v" >> "$GITHUB_OUTPUT"
+          echo "apk=coastal-forager-$v.apk" >> "$GITHUB_OUTPUT"
+
       - name: Build the release APK
         working-directory: apps/mobile/android
         env:
@@ -61,24 +70,32 @@ jobs:
         run: |
           # Each build gets a higher versionCode so Android accepts it as an update.
           sed -i "s/versionCode 1$/versionCode ${{ github.run_number }}/" app/build.gradle
+          sed -i -E 's/versionName "[^"]*"/versionName "${{ steps.version.outputs.version }}"/' app/build.gradle
+          grep -E "versionCode|versionName" app/build.gradle
           ./gradlew assembleRelease --no-daemon -PreactNativeArchitectures=arm64-v8a,armeabi-v7a,x86_64
-          cp app/build/outputs/apk/release/app-release.apk "$GITHUB_WORKSPACE/coastal-forager.apk"
+          cp app/build/outputs/apk/release/app-release.apk "$GITHUB_WORKSPACE/${{ steps.version.outputs.apk }}"
 
       - uses: actions/upload-artifact@v4
         with:
-          name: coastal-forager-apk
-          path: coastal-forager.apk
+          name: coastal-forager-${{ steps.version.outputs.version }}
+          path: ${{ steps.version.outputs.apk }}
 
       - name: Publish to the android-latest pre-release
         if: github.event_name != 'pull_request'
         env:
           GH_TOKEN: ${{ github.token }}
+          APK: ${{ steps.version.outputs.apk }}
+          VERSION: ${{ steps.version.outputs.version }}
         run: |
-          notes="Built from ${GITHUB_SHA::7} (run ${{ github.run_number }}). Download coastal-forager.apk on your Android phone and open it to install."
+          notes="Version $VERSION, built from ${GITHUB_SHA::7}. Download $APK on your Android phone and open it to install."
           git tag -f android-latest && git push -f origin android-latest
           if gh release view android-latest >/dev/null 2>&1; then
             gh release edit android-latest --notes "$notes" --prerelease
-            gh release upload android-latest coastal-forager.apk --clobber
+            # Keep only the newest APK on the release.
+            for old in $(gh release view android-latest --json assets -q '.assets[].name' | grep '\.apk$'); do
+              [ "$old" = "$APK" ] || gh release delete-asset android-latest "$old" --yes
+            done
+            gh release upload android-latest "$APK" --clobber
           else
-            gh release create android-latest coastal-forager.apk --title "Android APK (latest)" --notes "$notes" --prerelease
+            gh release create android-latest "$APK" --title "Android APK (latest)" --notes "$notes" --prerelease
           fi
