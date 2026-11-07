@@ -64,6 +64,22 @@
                 "targetCellHeight": 2,
                 "resizeMode": "both"
               }
+            },
+            {
+              "name": "BeachTide",
+              "displayName": "Beach & species",
+              "description": "Today's rating and low tide for the beach and species you pick.",
+              "ios": {
+                "supportedFamilies": [
+                  "systemSmall",
+                  "systemMedium"
+                ]
+              },
+              "android": {
+                "targetCellWidth": 2,
+                "targetCellHeight": 2,
+                "resizeMode": "both"
+              }
             }
           ]
         }

@@ -9,11 +9,14 @@ import * as TaskManager from 'expo-task-manager';
 import { useEffect } from 'react';
 import { AppState, Platform } from 'react-native';
 
+import BeachTide from '@/widgets/BeachTide';
 import DayQuality from '@/widgets/DayQuality';
-import { loadCachedBeaches, loadCachedTides, loadTides } from './data';
+import { loadCachedBeaches, loadCachedTides, loadTides, stationFor } from './data';
 import { useBeaches } from './hooks';
 import { useUser } from './store';
-import { buildWidgetEntries, type WidgetInputs } from './widget-data';
+import { buildBeachTideEntries, buildWidgetEntries, type BeachTidePick, type WidgetInputs } from './widget-data';
+
+type SavedState = WidgetInputs & { widget?: BeachTidePick };
 
 export const WIDGET_TASK = 'refresh-day-quality-widget';
 
@@ -25,7 +28,13 @@ async function tidesWithFallback(stationId: string) {
   }
 }
 
-async function publish(input: WidgetInputs, beaches: Awaited<ReturnType<typeof loadCachedBeaches>>) {
+type Beaches = Awaited<ReturnType<typeof loadCachedBeaches>>;
+
+async function publish(input: SavedState, beaches: Beaches) {
+  await Promise.all([publishDayQuality(input, beaches), publishBeachTide(input, beaches)]);
+}
+
+async function publishDayQuality(input: WidgetInputs, beaches: Beaches) {
   const entries = await buildWidgetEntries(input, beaches, tidesWithFallback);
   // iOS shows each day's entry at local midnight; Android shows the snapshot
   // and relies on the background task to roll it over.
@@ -33,12 +42,25 @@ async function publish(input: WidgetInputs, beaches: Awaited<ReturnType<typeof l
   else DayQuality.updateSnapshot(entries[0].props);
 }
 
+async function publishBeachTide(input: SavedState, beaches: Beaches) {
+  const pick = input.widget ?? { bidn: null, species: null };
+  const beach = pick.bidn ? beaches.find((b) => b.bidn === pick.bidn) : undefined;
+  let tides = null;
+  if (beach) {
+    const station = await stationFor(beach).catch(() => null);
+    if (station) tides = await tidesWithFallback(station.id);
+  }
+  const entries = buildBeachTideEntries(pick, input.prefs, beach, tides);
+  if (Platform.OS === 'ios') BeachTide.updateTimeline(entries);
+  else BeachTide.updateSnapshot(entries[0].props);
+}
+
 // Background refresh: runs without React, so it reads the saved user state.
 TaskManager.defineTask(WIDGET_TASK, async () => {
   try {
     const raw = await AsyncStorage.getItem('user:v1');
     if (!raw) return BackgroundTask.BackgroundTaskResult.Success;
-    const s = JSON.parse(raw) as WidgetInputs;
+    const s = JSON.parse(raw) as SavedState;
     await publish(s, await loadCachedBeaches());
     return BackgroundTask.BackgroundTaskResult.Success;
   } catch {
@@ -48,7 +70,7 @@ TaskManager.defineTask(WIDGET_TASK, async () => {
 
 /** Mount once near the root. Renders nothing. */
 export function WidgetSync() {
-  const { ready, favoriteBeaches, favoriteSpecies, prefs } = useUser();
+  const { ready, favoriteBeaches, favoriteSpecies, prefs, widget } = useUser();
   const beaches = useBeaches();
 
   useEffect(() => {
@@ -57,13 +79,13 @@ export function WidgetSync() {
 
   useEffect(() => {
     if (!ready || !beaches.data) return;
-    const input = { favoriteBeaches, favoriteSpecies, prefs };
+    const input = { favoriteBeaches, favoriteSpecies, prefs, widget };
     const run = () => publish(input, beaches.data!).catch(() => {});
     // Let the screens render first; the widget can wait a moment.
     const first = setTimeout(run, 1500);
     const sub = AppState.addEventListener('change', (s) => s === 'active' && run());
     return () => (clearTimeout(first), sub.remove());
-  }, [ready, beaches.data, favoriteBeaches, favoriteSpecies, prefs]);
+  }, [ready, beaches.data, favoriteBeaches, favoriteSpecies, prefs, widget]);
 
   return null;
 }
