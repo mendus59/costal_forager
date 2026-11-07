@@ -34,3 +34,39 @@ export const EMPTY_WIDGET: DayQualityProps = {
   next: '',
   url: 'coastalforager://',
 };
+
+/**
+ * The "Beach & species" widget: one beach and one species the user picked,
+ * colored by how well the day fits their saved preferences.
+ */
+export interface BeachTideProps {
+  /** Day the color is for: "Today", "Tomorrow" or "Sat, Nov 7". */
+  when: string;
+  /** "Great", "Good", "Marginal", "Poor", "Closed", or "" before setup. */
+  rating: string;
+  /** Background and text colors for the rating. */
+  bg: string;
+  fg: string;
+  /** "Oysters" */
+  species: string;
+  /** "Potlatch State Park" */
+  beach: string;
+  /** The best low tide in the user's hours that day: "Low −1.8 ft at 9:42 AM". */
+  low: string;
+  /** The very next low tide from now, any hour: "Next low 3:12 PM (+0.4 ft)". */
+  next: string;
+  /** Deep link the widget opens. */
+  url: string;
+}
+
+export const EMPTY_BEACH_TIDE: BeachTideProps = {
+  when: '',
+  rating: '',
+  bg: '#7b8a90',
+  fg: '#ffffff',
+  species: '',
+  beach: 'Pick a beach',
+  low: 'Open Coastal Forager, then Settings > Home-screen widget to choose a beach and species.',
+  next: '',
+  url: 'coastalforager://settings',
+};

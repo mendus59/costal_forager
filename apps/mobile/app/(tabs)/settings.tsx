@@ -1,13 +1,15 @@
 import { DOH_SAFETY_MAP, getSpecies, SPECIES, WDFW_RAZOR_PAGE, type SpeciesId, type TimeWindow } from '@costal-forager/core';
 import { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet } from 'react-native';
+import { Platform, Pressable, ScrollView, StyleSheet } from 'react-native';
 
 import { Chip } from '@/components/Badges';
 import { ExternalLink } from '@/components/ExternalLink';
 import { Stepper } from '@/components/Stepper';
 import { Text, View, useThemeColor } from '@/components/Themed';
 import { fmtFt, fmtMinutes } from '@/lib/format';
+import { useBeaches } from '@/lib/hooks';
 import { pushSupported, registerForPush } from '@/lib/notifications';
+import { speciesForBeach } from '@/lib/species';
 import { useUser } from '@/lib/store';
 
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -132,6 +134,8 @@ export default function SettingsScreen() {
         </View>
       )}
 
+      {Platform.OS !== 'web' && <WidgetSettings />}
+
       <View card>
         <Text style={styles.h2}>When you like to go</Text>
         <Text muted style={styles.help}>
@@ -248,6 +252,62 @@ export default function SettingsScreen() {
         <Text muted>Reset all settings and favorites</Text>
       </Pressable>
     </ScrollView>
+  );
+}
+
+/** Picks the beach and species for the "Beach & species" home-screen widget. */
+function WidgetSettings() {
+  const { widget, setWidget, favoriteBeaches, favoriteSpecies } = useUser();
+  const beaches = useBeaches();
+  const byId = new Map((beaches.data ?? []).map((b) => [b.bidn, b]));
+  const ids = widget.bidn && !favoriteBeaches.includes(widget.bidn) ? [widget.bidn, ...favoriteBeaches] : favoriteBeaches;
+  const choices = ids.map((id) => byId.get(id)).filter((b) => !!b);
+  const beach = widget.bidn ? byId.get(widget.bidn) : undefined;
+  const species = beach ? speciesForBeach(beach) : [];
+
+  const pickBeach = (bidn: string) => {
+    const b = byId.get(bidn);
+    const here = b ? speciesForBeach(b) : [];
+    // Keep the species if it lives here too, else start with a favorite one.
+    const keep = widget.species && here.includes(widget.species) ? widget.species : null;
+    setWidget({ bidn, species: keep ?? here.find((id) => favoriteSpecies.includes(id)) ?? here[0] ?? null });
+  };
+
+  return (
+    <View card>
+      <Text style={styles.h2}>Home-screen widget</Text>
+      <Text muted style={styles.help}>
+        Add the "Beach & species" widget to your home screen. Its color is the day's rating with your hours, days and
+        tide settings, and it shows the best low tide and the next one.
+      </Text>
+      <Text style={styles.h3}>Beach</Text>
+      {choices.length === 0 ? (
+        <Text muted style={styles.help}>
+          {beaches.loading ? 'Loading beaches…' : 'Star a beach first, or open a beach and tap "Show on widget".'}
+        </Text>
+      ) : (
+        <View style={styles.chips}>
+          {choices.map((b) => (
+            <Chip key={b.bidn} label={b.name} selected={widget.bidn === b.bidn} onPress={() => pickBeach(b.bidn)} />
+          ))}
+        </View>
+      )}
+      {beach && (
+        <>
+          <Text style={styles.h3}>Species</Text>
+          <View style={styles.chips}>
+            {species.map((id) => (
+              <Chip
+                key={id}
+                label={getSpecies(id).plural}
+                selected={widget.species === id}
+                onPress={() => setWidget({ bidn: beach.bidn, species: id })}
+              />
+            ))}
+          </View>
+        </>
+      )}
+    </View>
   );
 }
 

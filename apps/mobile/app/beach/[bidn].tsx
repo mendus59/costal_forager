@@ -12,7 +12,7 @@ import {
 } from '@costal-forager/core';
 import { Stack, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, ScrollView, StyleSheet } from 'react-native';
+import { ActivityIndicator, Platform, Pressable, ScrollView, StyleSheet } from 'react-native';
 
 import { Chip, StatusBadge } from '@/components/Badges';
 import { DayScoreLine } from '@/components/DayScoreLine';
@@ -30,7 +30,7 @@ export default function BeachScreen() {
   const beaches = useBeaches();
   const beach = beaches.data?.find((b) => b.bidn === bidn);
   const tides = useBeachTides(beach);
-  const { prefs, favoriteSpecies } = useUser();
+  const { prefs, favoriteSpecies, widget, setWidget } = useUser();
   const tint = useThemeColor('tint');
   const today = localDateKey(new Date());
 
@@ -134,6 +134,18 @@ export default function BeachScreen() {
             Razor clam digs are announced by WDFW about a week ahead. Check the schedule.
           </ExternalLink>
         )}
+        {Platform.OS !== 'web' && selected && (
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => setWidget({ bidn: beach.bidn, species: selected })}
+            style={styles.widgetButton}>
+            <Text style={{ color: tint, fontSize: 14 }}>
+              {widget.bidn === beach.bidn && widget.species === selected
+                ? `✓ ${getSpecies(selected).plural} here are on your home-screen widget`
+                : `Show ${getSpecies(selected).plural.toLowerCase()} here on my home-screen widget`}
+            </Text>
+          </Pressable>
+        )}
         {calendar.map((s) => (
           <DayScoreLine key={s.date} score={s} title={relativeDay(s.date, today)} showSpecies={false} />
         ))}
@@ -156,4 +168,5 @@ const styles = StyleSheet.create({
   speciesBlock: { backgroundColor: 'transparent' },
   next: { fontSize: 12, marginLeft: 4, marginBottom: 4 },
   chips: { flexDirection: 'row', flexWrap: 'wrap', marginTop: 6, backgroundColor: 'transparent' },
+  widgetButton: { paddingVertical: 8 },
 });

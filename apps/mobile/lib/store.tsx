@@ -13,7 +13,13 @@ import { DEFAULT_NOTIFY, mergeStates, pullRemote, pushRemote, type NotifySetting
 
 const KEY = 'user:v1';
 
-export type UserState = SyncedState;
+/** The beach and species the "Beach & species" home-screen widget shows. Kept on this device only. */
+export interface WidgetPick {
+  bidn: string | null;
+  species: SpeciesId | null;
+}
+
+export type UserState = SyncedState & { widget: WidgetPick };
 export type { NotifySettings };
 
 const DEFAULT_STATE: UserState = {
@@ -21,6 +27,7 @@ const DEFAULT_STATE: UserState = {
   favoriteSpecies: ['oyster', 'manila_clam', 'native_littleneck', 'butter_clam', 'razor_clam'],
   prefs: DEFAULT_PREFS,
   notify: DEFAULT_NOTIFY,
+  widget: { bidn: null, species: null },
 };
 
 export type SyncStatus = 'local' | 'syncing' | 'synced' | 'error';
@@ -35,6 +42,7 @@ interface Store extends UserState {
   toggleSpecies(id: SpeciesId): void;
   setPrefs(update: (p: ScoringPrefs) => ScoringPrefs): void;
   setNotify(update: (n: NotifySettings) => NotifySettings): void;
+  setWidget(pick: WidgetPick): void;
   reset(): void;
 }
 
@@ -58,7 +66,12 @@ export function UserProvider({ children }: { children: ReactNode }) {
       .then((raw) => {
         if (raw) {
           const saved = JSON.parse(raw) as Partial<UserState>;
-          setState({ ...DEFAULT_STATE, ...saved, notify: { ...DEFAULT_NOTIFY, ...saved.notify } });
+          setState({
+            ...DEFAULT_STATE,
+            ...saved,
+            notify: { ...DEFAULT_NOTIFY, ...saved.notify },
+            widget: { ...DEFAULT_STATE.widget, ...saved.widget },
+          });
         }
       })
       .catch(() => {})
@@ -108,7 +121,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
     pullRemote(userId)
       .then((remote) => {
         if (!live) return;
-        const next = mergeStates(stateRef.current, remote);
+        const next = { ...stateRef.current, ...mergeStates(stateRef.current, remote) };
         setState(next);
         save(next);
         stateRef.current = next;
@@ -156,6 +169,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
         }),
       setPrefs: (fn) => update((s) => ({ ...s, prefs: fn(s.prefs) })),
       setNotify: (fn) => update((s) => ({ ...s, notify: fn(s.notify) })),
+      setWidget: (widget) => update((s) => ({ ...s, widget })),
       reset: () => update(() => DEFAULT_STATE),
     }),
     [state, ready, session, sync, syncError, update],
