@@ -12,7 +12,7 @@ import { useBeaches, useBeachTides } from '@/lib/hooks';
 import { pushSupported, registerForPush } from '@/lib/notifications';
 import { speciesForBeach } from '@/lib/species';
 import { useUser } from '@/lib/store';
-import { buildBeachTideEntries } from '@/lib/widget-data';
+import { buildBeachTideEntries, effectivePick } from '@/lib/widget-data';
 
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
@@ -262,22 +262,27 @@ function WidgetSettings() {
   const { widget, setWidget, favoriteBeaches, favoriteSpecies, prefs } = useUser();
   const beaches = useBeaches();
   const byId = new Map((beaches.data ?? []).map((b) => [b.bidn, b]));
-  const ids = widget.bidn && !favoriteBeaches.includes(widget.bidn) ? [widget.bidn, ...favoriteBeaches] : favoriteBeaches;
+  // What the widget shows now: the pick, or the first favorite until one is picked.
+  const shown = useMemo(
+    () => effectivePick(widget, favoriteBeaches, favoriteSpecies, beaches.data ?? []),
+    [widget, favoriteBeaches, favoriteSpecies, beaches.data],
+  );
+  const ids = shown.bidn && !favoriteBeaches.includes(shown.bidn) ? [shown.bidn, ...favoriteBeaches] : favoriteBeaches;
   const choices = ids.map((id) => byId.get(id)).filter((b) => !!b);
-  const beach = widget.bidn ? byId.get(widget.bidn) : undefined;
+  const beach = shown.bidn ? byId.get(shown.bidn) : undefined;
   const species = beach ? speciesForBeach(beach) : [];
   const tides = useBeachTides(beach);
   // The same content the home-screen widget gets right now.
   const preview = useMemo(
-    () => buildBeachTideEntries(widget, prefs, beach, tides.data?.tides ?? null)[0].props,
-    [widget, prefs, beach, tides.data],
+    () => buildBeachTideEntries(shown, prefs, beach, tides.data?.tides ?? null)[0].props,
+    [shown, prefs, beach, tides.data],
   );
 
   const pickBeach = (bidn: string) => {
     const b = byId.get(bidn);
     const here = b ? speciesForBeach(b) : [];
     // Keep the species if it lives here too, else start with a favorite one.
-    const keep = widget.species && here.includes(widget.species) ? widget.species : null;
+    const keep = shown.species && here.includes(shown.species) ? shown.species : null;
     setWidget({ bidn, species: keep ?? here.find((id) => favoriteSpecies.includes(id)) ?? here[0] ?? null });
   };
 
@@ -296,7 +301,7 @@ function WidgetSettings() {
       ) : (
         <View style={styles.chips}>
           {choices.map((b) => (
-            <Chip key={b.bidn} label={b.name} selected={widget.bidn === b.bidn} onPress={() => pickBeach(b.bidn)} />
+            <Chip key={b.bidn} label={b.name} selected={shown.bidn === b.bidn} onPress={() => pickBeach(b.bidn)} />
           ))}
         </View>
       )}
@@ -308,12 +313,17 @@ function WidgetSettings() {
               <Chip
                 key={id}
                 label={getSpecies(id).plural}
-                selected={widget.species === id}
+                selected={shown.species === id}
                 onPress={() => setWidget({ bidn: beach.bidn, species: id })}
               />
             ))}
           </View>
         </>
+      )}
+      {shown.auto && beach && (
+        <Text muted style={styles.help}>
+          Showing your first favorite beach until you pick one.
+        </Text>
       )}
       <Text style={styles.h3}>Preview</Text>
       <BeachTidePreview p={tides.loading && !tides.data && beach ? { ...preview, low: 'Loading tides…', next: '' } : preview} />

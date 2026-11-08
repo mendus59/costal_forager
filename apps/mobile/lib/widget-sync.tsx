@@ -11,10 +11,11 @@ import { AppState, Platform } from 'react-native';
 
 import BeachTide from '@/widgets/BeachTide';
 import DayQuality from '@/widgets/DayQuality';
+import { EMPTY_BEACH_TIDE } from '@/widgets/types';
 import { loadCachedBeaches, loadCachedTides, loadTides, stationFor } from './data';
 import { useBeaches } from './hooks';
 import { useUser } from './store';
-import { buildBeachTideEntries, buildWidgetEntries, type BeachTidePick, type WidgetInputs } from './widget-data';
+import { buildBeachTideEntries, buildWidgetEntries, effectivePick, type BeachTidePick, type WidgetInputs } from './widget-data';
 
 type SavedState = WidgetInputs & { widget?: BeachTidePick };
 
@@ -31,7 +32,8 @@ async function tidesWithFallback(stationId: string) {
 type Beaches = Awaited<ReturnType<typeof loadCachedBeaches>>;
 
 async function publish(input: SavedState, beaches: Beaches) {
-  await Promise.all([publishDayQuality(input, beaches), publishBeachTide(input, beaches)]);
+  // Each widget publishes on its own, so one failing never blanks the other.
+  await Promise.allSettled([publishDayQuality(input, beaches), publishBeachTide(input, beaches)]);
 }
 
 async function publishDayQuality(input: WidgetInputs, beaches: Beaches) {
@@ -43,7 +45,16 @@ async function publishDayQuality(input: WidgetInputs, beaches: Beaches) {
 }
 
 async function publishBeachTide(input: SavedState, beaches: Beaches) {
-  const pick = input.widget ?? { bidn: null, species: null };
+  try {
+    await publishBeachTideOrThrow(input, beaches);
+  } catch (e) {
+    // Show the problem on the widget instead of leaving stale or setup text.
+    BeachTide.updateSnapshot({ ...EMPTY_BEACH_TIDE, beach: "Couldn't update", low: String((e as Error)?.message ?? e).slice(0, 120) });
+  }
+}
+
+async function publishBeachTideOrThrow(input: SavedState, beaches: Beaches) {
+  const pick = effectivePick(input.widget, input.favoriteBeaches, input.favoriteSpecies, beaches);
   const beach = pick.bidn ? beaches.find((b) => b.bidn === pick.bidn) : undefined;
   let tides = null;
   if (beach) {

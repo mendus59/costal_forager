@@ -121,6 +121,29 @@ export interface BeachTidePick {
 }
 
 /**
+ * The beach and species the widget shows: the user's pick, or until they
+ * pick one, their first favorite beach with a favorite species found there,
+ * so the widget is useful as soon as it is added.
+ */
+export function effectivePick(
+  pick: BeachTidePick | undefined,
+  favoriteBeaches: readonly string[],
+  favoriteSpecies: readonly SpeciesId[],
+  beaches: readonly Beach[],
+): BeachTidePick & { auto: boolean } {
+  if (pick?.bidn && pick.species) return { ...pick, auto: false };
+  const byId = new Map(beaches.map((b) => [b.bidn, b]));
+  for (const id of pick?.bidn ? [pick.bidn, ...favoriteBeaches] : favoriteBeaches) {
+    const b = byId.get(id);
+    if (!b) continue;
+    const here = speciesForBeach(b);
+    const sp = here.find((s) => favoriteSpecies.includes(s)) ?? here[0];
+    if (sp) return { bidn: b.bidn, species: sp, auto: true };
+  }
+  return { bidn: null, species: null, auto: true };
+}
+
+/**
  * The widget's content over the next two days, one entry per moment its text
  * changes (each low tide, the end of each harvest window, each midnight), so
  * iOS can step through them and Android can show the current one.
