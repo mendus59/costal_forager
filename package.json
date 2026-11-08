@@ -7,7 +7,8 @@
     "packages/*"
   ],
   "scripts": {
-    "test": "npm run test --workspaces --if-present",
+    "postinstall": "node scripts/patch-expo-widgets.cjs",
+    "test":"npm run test --workspaces --if-present",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "gen:seed": "node --experimental-strip-types scripts/gen-seed.ts"
   }

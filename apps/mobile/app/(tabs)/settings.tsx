@@ -1,16 +1,18 @@
 import { DOH_SAFETY_MAP, getSpecies, SPECIES, WDFW_RAZOR_PAGE, type SpeciesId, type TimeWindow } from '@costal-forager/core';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Platform, Pressable, ScrollView, StyleSheet } from 'react-native';
 
 import { Chip } from '@/components/Badges';
 import { ExternalLink } from '@/components/ExternalLink';
 import { Stepper } from '@/components/Stepper';
+import { BeachTidePreview } from '@/components/WidgetPreview';
 import { Text, View, useThemeColor } from '@/components/Themed';
 import { fmtFt, fmtMinutes } from '@/lib/format';
-import { useBeaches } from '@/lib/hooks';
+import { useBeaches, useBeachTides } from '@/lib/hooks';
 import { pushSupported, registerForPush } from '@/lib/notifications';
 import { speciesForBeach } from '@/lib/species';
 import { useUser } from '@/lib/store';
+import { buildBeachTideEntries } from '@/lib/widget-data';
 
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
@@ -257,13 +259,19 @@ export default function SettingsScreen() {
 
 /** Picks the beach and species for the "Beach & species" home-screen widget. */
 function WidgetSettings() {
-  const { widget, setWidget, favoriteBeaches, favoriteSpecies } = useUser();
+  const { widget, setWidget, favoriteBeaches, favoriteSpecies, prefs } = useUser();
   const beaches = useBeaches();
   const byId = new Map((beaches.data ?? []).map((b) => [b.bidn, b]));
   const ids = widget.bidn && !favoriteBeaches.includes(widget.bidn) ? [widget.bidn, ...favoriteBeaches] : favoriteBeaches;
   const choices = ids.map((id) => byId.get(id)).filter((b) => !!b);
   const beach = widget.bidn ? byId.get(widget.bidn) : undefined;
   const species = beach ? speciesForBeach(beach) : [];
+  const tides = useBeachTides(beach);
+  // The same content the home-screen widget gets right now.
+  const preview = useMemo(
+    () => buildBeachTideEntries(widget, prefs, beach, tides.data?.tides ?? null)[0].props,
+    [widget, prefs, beach, tides.data],
+  );
 
   const pickBeach = (bidn: string) => {
     const b = byId.get(bidn);
@@ -307,6 +315,11 @@ function WidgetSettings() {
           </View>
         </>
       )}
+      <Text style={styles.h3}>Preview</Text>
+      <BeachTidePreview p={tides.loading && !tides.data && beach ? { ...preview, low: 'Loading tides…', next: '' } : preview} />
+      <Text muted style={[styles.help, { textAlign: 'center' }]}>
+        Tap the widget on your home screen to open this beach in the app.
+      </Text>
     </View>
   );
 }
