@@ -1,46 +1,51 @@
 /**
- * Android "Beach & species" widget (Glance via expo-widgets). The layout is
- * serialized, so it may only use its props and the Jetpack Compose components
- * below: no hooks, no app imports, no module-level values.
+ * Android home-screen widget (Glance via expo-widgets), a 3x1 strip on the
+ * rating's color: the low tide time first, then rating, species and beach.
+ *
+ * The layout is serialized, so it may only use its props and the Jetpack
+ * Compose components below: no hooks, no app imports, no module-level values.
+ * expo-widgets ignores the `weight` modifier on Android, so nothing here can
+ * stretch to push content right; the short tide time goes first and the
+ * longer text after it, where it is cut off at the widget's edge if needed.
  */
-import { Column, Spacer, Text } from '@expo/ui/jetpack-compose';
-import { background, fillMaxSize, paddingAll, weight } from '@expo/ui/jetpack-compose/modifiers';
+import { Column, Row, Text } from '@expo/ui/jetpack-compose';
+import { background, fillMaxSize, padding } from '@expo/ui/jetpack-compose/modifiers';
 import { createWidget } from 'expo-widgets';
 
 import { EMPTY_BEACH_TIDE, type BeachTideProps } from './types';
 
 const BeachTide = (p: BeachTideProps) => {
   'widget';
+  const head = p.rating ? (p.when ? `${p.rating} · ${p.when}` : p.rating) : p.beach;
+  const sub = p.rating ? `${p.species} · ${p.beach}` : '';
   return (
-    <Column modifiers={[fillMaxSize(), background(p.bg), paddingAll(12)]}>
-      {p.when ? (
-        <Text color={p.fg} style={{ fontSize: 12, fontWeight: '600' }}>
-          {p.when}
-        </Text>
+    <Row verticalAlignment="center" modifiers={[fillMaxSize(), background(p.bg), padding(14, 4, 12, 4)]}>
+      {p.tideTime ? (
+        <Column modifiers={[padding(0, 0, 14, 0)]}>
+          <Text color={p.fg} maxLines={1} style={{ fontSize: 22, fontWeight: 'bold' }}>
+            {p.tideTime}
+          </Text>
+          <Text color={p.fg} maxLines={1} style={{ fontSize: 11 }}>
+            {p.tideLabel}
+          </Text>
+        </Column>
       ) : null}
-      {p.rating ? (
-        <Text color={p.fg} style={{ fontSize: 24, fontWeight: 'bold' }}>
-          {p.rating}
+      <Column>
+        <Text color={p.fg} maxLines={1} style={{ fontSize: 15, fontWeight: 'bold' }}>
+          {head}
         </Text>
-      ) : null}
-      {p.species ? (
-        <Text color={p.fg} maxLines={1} style={{ fontSize: 14, fontWeight: '600' }}>
-          {p.species}
-        </Text>
-      ) : null}
-      <Text color={p.fg} maxLines={1} style={{ fontSize: 12 }}>
-        {p.beach}
-      </Text>
-      <Spacer modifiers={[weight(1)]} />
-      <Text color={p.fg} maxLines={3} style={{ fontSize: 12, fontWeight: '600' }}>
-        {p.low}
-      </Text>
-      {p.next ? (
-        <Text color={p.fg} maxLines={1} style={{ fontSize: 11 }}>
-          {p.next}
-        </Text>
-      ) : null}
-    </Column>
+        {sub ? (
+          <Text color={p.fg} maxLines={1} style={{ fontSize: 12 }}>
+            {sub}
+          </Text>
+        ) : null}
+        {p.note ? (
+          <Text color={p.fg} maxLines={sub ? 1 : 2} style={{ fontSize: 11 }}>
+            {p.note}
+          </Text>
+        ) : null}
+      </Column>
+    </Row>
   );
 };
 

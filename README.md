@@ -97,10 +97,11 @@ eas build --profile development --platform android   # or ios
   these up on the first build.
 * **Android** push needs an FCM key uploaded to EAS
   (`eas credentials`, then "Google Service Account Key for FCM V1").
-* The widget ("Shellfishing day", small and medium) shows today's best rating
-  across favorite beaches and species. iOS gets a week of entries that roll
-  over at midnight; Android gets a snapshot, refreshed by a background task
-  every few hours and whenever the app opens.
+* The "Low tide" widget (Android 3x1, iOS medium) shows one beach and species,
+  picked in Settings (or the first favorite), on the color of the day's rating,
+  with the low tide time. Tapping it opens that beach. iOS gets a timeline of
+  entries; Android gets a snapshot, refreshed by a background task every few
+  hours and whenever the app opens.
 
 #### Android APK without an Expo account
 
