@@ -1,43 +1,8 @@
 /**
- * What the home-screen widget shows. Everything is precomputed text and
- * colors, because widget layouts run in a separate runtime that cannot import
- * app code.
- */
-export interface DayQualityProps {
-  /** "Today", "Tomorrow" or "Sat, Nov 7". */
-  when: string;
-  /** "Great", "Good", "Marginal", "Poor", "Closed", or "" when there is nothing to show. */
-  rating: string;
-  /** Badge colors for the rating. */
-  bg: string;
-  fg: string;
-  /** "Oysters" */
-  species: string;
-  /** "Potlatch State Park" */
-  beach: string;
-  /** "Low −1.8 ft at 9:42 AM" */
-  detail: string;
-  /** "Next great day: Sat, Nov 7" */
-  next: string;
-  /** Deep link the widget opens, such as coastalforager://beach/270440. */
-  url: string;
-}
-
-export const EMPTY_WIDGET: DayQualityProps = {
-  when: 'Today',
-  rating: '',
-  bg: '#7b8a90',
-  fg: '#ffffff',
-  species: '',
-  beach: 'Star a beach',
-  detail: 'Open Coastal Forager and star your favorite beaches to see their day here.',
-  next: '',
-  url: 'coastalforager://',
-};
-
-/**
- * The "Beach & species" widget: one beach and one species the user picked,
- * colored by how well the day fits their saved preferences.
+ * What the home-screen widget shows: one beach and one species the user
+ * picked, colored by how well the day fits their saved preferences, with the
+ * low tide time. Everything is precomputed text and colors, because widget
+ * layouts run in a separate runtime that cannot import app code.
  */
 export interface BeachTideProps {
   /** Day the color is for: "Today", "Tomorrow" or "Sat, Nov 7". */
@@ -51,10 +16,12 @@ export interface BeachTideProps {
   species: string;
   /** "Potlatch State Park" */
   beach: string;
-  /** The best low tide in the user's hours that day: "Low −1.8 ft at 9:42 AM". */
-  low: string;
-  /** The very next low tide from now, any hour: "Next low 3:12 PM (+0.4 ft)". */
-  next: string;
+  /** "9:42 AM": the best low in the user's hours, else the next low tide. */
+  tideTime: string;
+  /** "Best low −1.8 ft", "Next low +2.1 ft" or "Tomorrow low −1.2 ft". */
+  tideLabel: string;
+  /** Why the day rates as it does when it isn't usable, such as "WDFW season closed". */
+  note: string;
   /** Deep link the widget opens. */
   url: string;
 }
@@ -65,8 +32,9 @@ export const EMPTY_BEACH_TIDE: BeachTideProps = {
   bg: '#7b8a90',
   fg: '#ffffff',
   species: '',
-  beach: 'Pick a beach',
-  low: 'Open Coastal Forager, then Settings > Home-screen widget to choose a beach and species.',
-  next: '',
+  beach: 'Star a beach',
+  tideTime: '',
+  tideLabel: '',
+  note: 'Tap to open Coastal Forager and pick a beach.',
   url: 'coastalforager://settings',
 };

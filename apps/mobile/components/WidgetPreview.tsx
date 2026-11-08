@@ -3,46 +3,63 @@ import { StyleSheet, Text, View } from 'react-native';
 import type { BeachTideProps } from '@/widgets/types';
 
 /**
- * An in-app picture of the "Beach & species" home-screen widget, drawn from
- * the same props the real widget gets, at about a 2x2 home-screen size.
+ * An in-app picture of the home-screen widget, drawn from the same props the
+ * real widget gets and laid out like the Android 3x1 strip.
  */
 export function BeachTidePreview({ p }: { p: BeachTideProps }) {
   const t = { color: p.fg };
+  const head = p.rating ? (p.when ? `${p.rating} · ${p.when}` : p.rating) : p.beach;
+  const sub = p.rating ? `${p.species} · ${p.beach}` : '';
   return (
     <View
-      style={[styles.tile, { backgroundColor: p.bg }]}
+      style={[styles.strip, { backgroundColor: p.bg }]}
       accessible
-      accessibilityLabel={`Widget preview: ${[p.when, p.rating, p.species, p.beach, p.low, p.next].filter(Boolean).join(', ')}`}>
-      {p.when ? <Text style={[styles.when, t]}>{p.when}</Text> : null}
-      {p.rating ? <Text style={[styles.rating, t]}>{p.rating}</Text> : null}
-      {p.species ? (
-        <Text style={[styles.species, t]} numberOfLines={1}>
-          {p.species}
-        </Text>
+      accessibilityLabel={`Widget preview: ${[p.tideTime, p.tideLabel, head, sub, p.note].filter(Boolean).join(', ')}`}>
+      {p.tideTime ? (
+        <View style={styles.tide}>
+          <Text style={[styles.time, t]} numberOfLines={1}>
+            {p.tideTime}
+          </Text>
+          <Text style={[styles.small, t]} numberOfLines={1}>
+            {p.tideLabel}
+          </Text>
+        </View>
       ) : null}
-      <Text style={[styles.beach, t]} numberOfLines={1}>
-        {p.beach}
-      </Text>
-      <View style={styles.spacer} />
-      <Text style={[styles.low, t]} numberOfLines={3}>
-        {p.low}
-      </Text>
-      {p.next ? (
-        <Text style={[styles.next, t]} numberOfLines={1}>
-          {p.next}
+      <View style={styles.text}>
+        <Text style={[styles.head, t]} numberOfLines={1}>
+          {head}
         </Text>
-      ) : null}
+        {sub ? (
+          <Text style={[styles.sub, t]} numberOfLines={1}>
+            {sub}
+          </Text>
+        ) : null}
+        {p.note ? (
+          <Text style={[styles.small, t]} numberOfLines={sub ? 1 : 2}>
+            {p.note}
+          </Text>
+        ) : null}
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  tile: { width: 170, height: 170, borderRadius: 22, padding: 12, marginTop: 8, alignSelf: 'center' },
-  when: { fontSize: 12, fontWeight: '600' },
-  rating: { fontSize: 24, fontWeight: 'bold' },
-  species: { fontSize: 14, fontWeight: '600' },
-  beach: { fontSize: 12 },
-  spacer: { flex: 1 },
-  low: { fontSize: 12, fontWeight: '600' },
-  next: { fontSize: 11 },
+  strip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    width: '100%',
+    maxWidth: 320,
+    height: 76,
+    borderRadius: 20,
+    paddingHorizontal: 14,
+    marginTop: 8,
+    alignSelf: 'center',
+  },
+  tide: { marginRight: 14 },
+  text: { flexShrink: 1 },
+  time: { fontSize: 22, fontWeight: 'bold' },
+  head: { fontSize: 15, fontWeight: 'bold' },
+  sub: { fontSize: 12 },
+  small: { fontSize: 11 },
 });

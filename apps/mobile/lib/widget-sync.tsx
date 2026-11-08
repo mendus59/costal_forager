@@ -10,12 +10,11 @@ import { useEffect } from 'react';
 import { AppState, Platform } from 'react-native';
 
 import BeachTide from '@/widgets/BeachTide';
-import DayQuality from '@/widgets/DayQuality';
 import { EMPTY_BEACH_TIDE } from '@/widgets/types';
 import { loadCachedBeaches, loadCachedTides, loadTides, stationFor } from './data';
 import { useBeaches } from './hooks';
 import { useUser } from './store';
-import { buildBeachTideEntries, buildWidgetEntries, effectivePick, type BeachTidePick, type WidgetInputs } from './widget-data';
+import { buildBeachTideEntries, effectivePick, type BeachTidePick, type WidgetInputs } from './widget-data';
 
 type SavedState = WidgetInputs & { widget?: BeachTidePick };
 
@@ -32,24 +31,11 @@ async function tidesWithFallback(stationId: string) {
 type Beaches = Awaited<ReturnType<typeof loadCachedBeaches>>;
 
 async function publish(input: SavedState, beaches: Beaches) {
-  // Each widget publishes on its own, so one failing never blanks the other.
-  await Promise.allSettled([publishDayQuality(input, beaches), publishBeachTide(input, beaches)]);
-}
-
-async function publishDayQuality(input: WidgetInputs, beaches: Beaches) {
-  const entries = await buildWidgetEntries(input, beaches, tidesWithFallback);
-  // iOS shows each day's entry at local midnight; Android shows the snapshot
-  // and relies on the background task to roll it over.
-  if (Platform.OS === 'ios') DayQuality.updateTimeline(entries);
-  else DayQuality.updateSnapshot(entries[0].props);
-}
-
-async function publishBeachTide(input: SavedState, beaches: Beaches) {
   try {
     await publishBeachTideOrThrow(input, beaches);
   } catch (e) {
     // Show the problem on the widget instead of leaving stale or setup text.
-    BeachTide.updateSnapshot({ ...EMPTY_BEACH_TIDE, beach: "Couldn't update", low: String((e as Error)?.message ?? e).slice(0, 120) });
+    BeachTide.updateSnapshot({ ...EMPTY_BEACH_TIDE, beach: "Couldn't update", note: String((e as Error)?.message ?? e).slice(0, 120) });
   }
 }
 

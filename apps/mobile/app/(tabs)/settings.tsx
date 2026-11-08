@@ -257,7 +257,7 @@ export default function SettingsScreen() {
   );
 }
 
-/** Picks the beach and species for the "Beach & species" home-screen widget. */
+/** Picks the beach and species for the "Low tide" home-screen widget. */
 function WidgetSettings() {
   const { widget, setWidget, favoriteBeaches, favoriteSpecies, prefs } = useUser();
   const beaches = useBeaches();
@@ -290,8 +290,8 @@ function WidgetSettings() {
     <View card>
       <Text style={styles.h2}>Home-screen widget</Text>
       <Text muted style={styles.help}>
-        Add the "Beach & species" widget to your home screen. Its color is the day's rating with your hours, days and
-        tide settings, and it shows the best low tide and the next one.
+        Add the "Low tide" widget (3x1) to your home screen. Its color is the day's rating with your hours, days and
+        tide settings, and it shows the time of the best low tide in your hours (or the next low tide).
       </Text>
       <Text style={styles.h3}>Beach</Text>
       {choices.length === 0 ? (
@@ -326,7 +326,7 @@ function WidgetSettings() {
         </Text>
       )}
       <Text style={styles.h3}>Preview</Text>
-      <BeachTidePreview p={tides.loading && !tides.data && beach ? { ...preview, low: 'Loading tides…', next: '' } : preview} />
+      <BeachTidePreview p={tides.loading && !tides.data && beach ? { ...preview, tideTime: '', tideLabel: '', note: 'Loading tides…' } : preview} />
       <Text muted style={[styles.help, { textAlign: 'center' }]}>
         Tap the widget on your home screen to open this beach in the app.
       </Text>

@@ -50,34 +50,19 @@
           "groupIdentifier": "group.com.mendus59.coastalforager",
           "widgets": [
             {
-              "name": "DayQuality",
-              "displayName": "Shellfishing day",
-              "description": "Today's best rating at your favorite beaches.",
-              "ios": {
-                "supportedFamilies": [
-                  "systemSmall",
-                  "systemMedium"
-                ]
-              },
-              "android": {
-                "targetCellWidth": 2,
-                "targetCellHeight": 2,
-                "resizeMode": "both"
-              }
-            },
-            {
               "name": "BeachTide",
-              "displayName": "Beach & species",
-              "description": "Today's rating and low tide for the beach and species you pick.",
+              "displayName": "Low tide",
+              "description": "Your beach and species, colored by today's rating, with the low tide time.",
               "ios": {
                 "supportedFamilies": [
-                  "systemSmall",
                   "systemMedium"
                 ]
               },
               "android": {
-                "targetCellWidth": 2,
-                "targetCellHeight": 2,
+                "minWidth": 180,
+                "minHeight": 40,
+                "targetCellWidth": 3,
+                "targetCellHeight": 1,
                 "resizeMode": "both"
               }
             }
