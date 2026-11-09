@@ -13,7 +13,7 @@ import { DEFAULT_NOTIFY, mergeStates, pullRemote, pushRemote, type NotifySetting
 
 const KEY = 'user:v1';
 
-/** The beach and species the "Low tide" home-screen widget shows. Kept on this device only. */
+/** The beach and species the "Tides" home-screen widget shows. Kept on this device only. */
 export interface WidgetPick {
   bidn: string | null;
   species: SpeciesId | null;

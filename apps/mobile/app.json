@@ -51,8 +51,8 @@
           "widgets": [
             {
               "name": "BeachTide",
-              "displayName": "Low tide",
-              "description": "Your beach and species, colored by today's rating, with the low tide time.",
+              "displayName": "Tides",
+              "description": "Next high and low tide and a tide chart for your beach, with today's rating as a colored dot.",
               "ios": {
                 "supportedFamilies": [
                   "systemMedium"
@@ -60,9 +60,9 @@
               },
               "android": {
                 "minWidth": 180,
-                "minHeight": 40,
+                "minHeight": 110,
                 "targetCellWidth": 3,
-                "targetCellHeight": 1,
+                "targetCellHeight": 2,
                 "resizeMode": "both"
               }
             }

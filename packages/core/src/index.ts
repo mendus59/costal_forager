@@ -8,3 +8,4 @@ export * from "./wdfw.ts";
 export * from "./scoring.ts";
 export * from "./rows.ts";
 export * from "./alerts.ts";
+export * from "./tidemath.ts";
