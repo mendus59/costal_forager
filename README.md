@@ -97,9 +97,12 @@ eas build --profile development --platform android   # or ios
   these up on the first build.
 * **Android** push needs an FCM key uploaded to EAS
   (`eas credentials`, then "Google Service Account Key for FCM V1").
-* The "Low tide" widget (Android 3x1, iOS medium) shows one beach and species,
-  picked in Settings (or the first favorite), on the color of the day's rating,
-  with the low tide time. Tapping it opens that beach. iOS gets a timeline of
+* The "Tides" widget (Android 3x2, iOS medium) shows one beach and species,
+  picked in Settings (or the first favorite), with the next high and low tide,
+  a 24-hour tide chart (green bars are low enough for the species), and the
+  day's rating as a colored dot in the corner. The tide curve math comes from
+  the TideWidget project (`packages/core/src/tidemath.ts`). Tapping it opens
+  that beach. iOS gets a timeline of
   entries; Android gets a snapshot, refreshed by a background task every few
   hours and whenever the app opens.
 

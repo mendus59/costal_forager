@@ -1,12 +1,15 @@
 /**
- * Builds the home-screen widget's content: one beach and species, colored by
- * the day's rating under the user's preferences, with the low tide time.
+ * Builds the home-screen widget's content: one beach and species, its next
+ * high and low tide and a small tide chart, with the day's rating under the
+ * user's preferences as a colored dot.
  */
 import {
   addDays,
   getSpecies,
   localDateKey,
+  nextHighAndLow,
   scoreDay,
+  tideHeightAt,
   zonedTime,
   type ScoringPrefs,
   type SpeciesId,
@@ -14,7 +17,7 @@ import {
 } from '@costal-forager/core';
 
 import { RatingColors } from '@/constants/Colors';
-import { EMPTY_BEACH_TIDE, type BeachTideProps } from '@/widgets/types';
+import { EMPTY_BEACH_TIDE, WIDGET_COLORS, type BeachTideProps, type TideBar } from '@/widgets/types';
 import { toContext, type Beach } from './data';
 import { fmtFt, fmtTime, relativeDay } from './format';
 import { speciesForBeach, speciesName } from './species';
@@ -54,9 +57,9 @@ export function effectivePick(
 }
 
 /**
- * The widget's content over the next two days, one entry per moment its text
- * changes (each low tide, the end of each harvest window, each midnight), so
- * iOS can step through them and Android can show the current one.
+ * The widget's content over the next day, one entry per moment it changes
+ * (each hour for the chart, each tide turn, the end of each harvest window),
+ * so iOS can step through them and Android can show the current one.
  */
 export function buildBeachTideEntries(
   pick: BeachTidePick,
@@ -81,23 +84,51 @@ export function buildBeachTideEntries(
     return [{ date: now, props: { ...EMPTY_BEACH_TIDE, species, beach: beach.name, note: 'Open the app to load tides.', url } }];
   }
 
-  const until = now.getTime() + 2 * 86400000;
+  const until = now.getTime() + 86400000;
   const times = new Set<number>([now.getTime()]);
   const sp = getSpecies(pick.species);
   for (const e of tides) {
     const t = e.time.getTime();
-    if (e.type !== 'L' || t + sp.hoursAfterLow * 3600000 < now.getTime() || t > until) continue;
+    if (t + sp.hoursAfterLow * 3600000 < now.getTime() || t > until) continue;
     if (t > now.getTime()) times.add(t + 60000);
     const end = t + sp.hoursAfterLow * 3600000;
-    if (end > now.getTime()) times.add(end + 60000);
+    if (e.type === 'L' && end > now.getTime()) times.add(end + 60000);
   }
+  for (let h = 1; h <= 24; h++) times.add(Math.floor(now.getTime() / 3600000) * 3600000 + h * 3600000);
   const today = localDateKey(now);
-  for (let i = 1; i <= 2; i++) times.add(zonedTime(addDays(today, i), 0).getTime());
+  times.add(zonedTime(addDays(today, 1), 0).getTime());
 
   return [...times]
     .filter((t) => t <= until)
     .sort((a, b) => a - b)
     .map((t) => ({ date: new Date(t), props: beachTideAt(pick.species!, beach, ctx, tides, prefs, new Date(t)) }));
+}
+
+const weekday = new Intl.DateTimeFormat('en-US', { timeZone: 'UTC', weekday: 'short' });
+
+/** "3:12 PM" today, else "Tue 3:12 AM". */
+function tideTime(e: TideEvent, today: string): string {
+  const day = localDateKey(e.time);
+  return day === today ? fmtTime(e.time) : `${weekday.format(new Date(`${day}T12:00:00Z`))} ${fmtTime(e.time)}`;
+}
+
+/**
+ * Hourly bars from 2 hours ago through 21 hours ahead, like TideWidget's
+ * graph. Bars at or below the species' marginal tide (low enough to harvest)
+ * are green and the current hour is white.
+ */
+export function tideBars(tides: TideEvent[], at: Date, harvestFt: number): TideBar[] {
+  const hour = Math.floor(at.getTime() / 3600000) * 3600000;
+  const from = hour - 2 * 3600000;
+  const points = Array.from({ length: 24 }, (_, i) => tideHeightAt(tides, new Date(from + i * 3600000)));
+  const known = points.filter((h): h is number => h !== null);
+  if (known.length < 2) return [];
+  const lo = Math.min(...known);
+  const hi = Math.max(Math.max(...known), lo + 0.1);
+  return points.map((h, i) => ({
+    h: h === null ? 0 : (h - lo) / (hi - lo),
+    c: i === 2 ? WIDGET_COLORS.now : h !== null && h <= harvestFt ? WIDGET_COLORS.harvest : WIDGET_COLORS.water,
+  }));
 }
 
 function beachTideAt(
@@ -127,23 +158,21 @@ function beachTideAt(
           ? ''
           : 'No low tide in your hours';
 
-  // The tide time always shows: the best low in the user's hours on the rated
-  // day, or else simply the next low tide from now.
-  const low = best ?? tides.find((e) => e.type === 'L' && e.time.getTime() > at.getTime()) ?? null;
-  const lowDay = low ? localDateKey(low.time) : null;
-  const tideLabel = low
-    ? `${lowDay === today ? (best ? 'Best low' : 'Next low') : `${relativeDay(lowDay!, today)} low`} ${fmtFt(low.heightFt)}`
-    : 'No tide data';
-
+  const { high, low } = nextHighAndLow(tides, at);
+  const when = relativeDay(score.date, today);
   return {
-    when: relativeDay(score.date, today),
-    rating: colors.label,
-    bg: colors.bg,
-    fg: colors.fg,
-    species: speciesName(speciesId),
     beach: beach.name,
-    tideTime: low ? fmtTime(low.time) : '--',
-    tideLabel,
+    species: speciesName(speciesId),
+    dot: colors.bg,
+    status: `${colors.label} ${when === 'Today' || when === 'Tomorrow' ? when.toLowerCase() : `on ${when}`}`,
+    bg: WIDGET_COLORS.bg,
+    fg: WIDGET_COLORS.fg,
+    muted: WIDGET_COLORS.muted,
+    highTime: high ? tideTime(high, today) : '--',
+    highFt: high ? fmtFt(high.heightFt) : '',
+    lowTime: low ? tideTime(low, today) : '--',
+    lowFt: low ? fmtFt(low.heightFt) : '',
+    bars: tideBars(tides, at, getSpecies(speciesId).marginalTideFt),
     note,
     url: `coastalforager://beach/${beach.bidn}`,
   };
