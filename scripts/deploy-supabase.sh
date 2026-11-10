@@ -54,3 +54,12 @@ if [[ -n "${SUPABASE_SERVICE_ROLE_KEY:-}" ]]; then
 else
   echo "Set SUPABASE_SERVICE_ROLE_KEY to run the first syncs and schedule the jobs (supabase/cron.sql)."
 fi
+
+# Supabase's rls_disabled_in_public check: fail loudly if any table in the
+# API schema still has row-level security off.
+open_tables=$(sql "select coalesce(json_agg(c.relname), '[]'::json) as t from pg_class c join pg_namespace n on n.oid = c.relnamespace where n.nspname = 'public' and c.relkind in ('r', 'p') and not c.relrowsecurity;" | jq -r '.[0].t | join(", ")')
+if [[ -n "$open_tables" ]]; then
+  echo "::error::Tables in public without row-level security: $open_tables"
+  exit 1
+fi
+echo "Every table in public has row-level security."
