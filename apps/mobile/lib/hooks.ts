@@ -14,7 +14,7 @@ export interface Loadable<T> {
  * finds one, then replacing it with the fresh result. `loading` stays true
  * while the fresh load runs, so screens can show a small refresh indicator.
  */
-function useLoad<T>(
+export function useLoad<T>(
   load: (force: boolean) => Promise<T>,
   deps: unknown[],
   peek?: () => Promise<T | null>,

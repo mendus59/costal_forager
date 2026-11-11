@@ -51,6 +51,8 @@ function RootLayoutNav() {
         <Stack>
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
           <Stack.Screen name="beach/[bidn]" options={{ title: 'Beach' }} />
+          <Stack.Screen name="station/[id]" options={{ title: 'Tide station' }} />
+          <Stack.Screen name="areas" options={{ title: 'Areas' }} />
         </Stack>
         <WidgetSync />
       </ThemeProvider>

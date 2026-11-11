@@ -32,7 +32,7 @@ export function lastWidgetSize(name: string): { w: number; h: number } | null {
  * Draw the chart at `at` for the widget's last size and the common ratios,
  * save them, and remove charts from earlier updates.
  */
-export function writeWidgetCharts(name: string, tides: TideEvent[], at: Date, harvestFt: number, hasSub: boolean): TideChartImage[] {
+export function writeWidgetCharts(name: string, tides: TideEvent[], at: Date, harvestFt: number | null, hasSub: boolean): TideChartImage[] {
   const dir = new Directory(widgetsDirectory);
   if (!dir.exists) dir.create({ intermediates: true, idempotent: true });
   const density = Math.min(3, PixelRatio.get());
