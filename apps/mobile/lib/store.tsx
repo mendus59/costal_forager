@@ -13,10 +13,15 @@ import { DEFAULT_NOTIFY, mergeStates, pullRemote, pushRemote, type NotifySetting
 
 const KEY = 'user:v1';
 
-/** The beach and species the "Tides" home-screen widget shows. Kept on this device only. */
+/**
+ * What the "Tides" home-screen widget shows: a beach and species, or (like
+ * TideWidget) just a NOAA tide station. Kept on this device only.
+ */
 export interface WidgetPick {
   bidn: string | null;
   species: SpeciesId | null;
+  /** A tide station picked from the tide map; used when no beach is picked. */
+  station?: { id: string; name: string } | null;
 }
 
 export type UserState = SyncedState & { widget: WidgetPick };

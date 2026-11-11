@@ -17,10 +17,11 @@ import { Stepper } from '@/components/Stepper';
 import { BeachTidePreview, PREVIEW_CHART } from '@/components/WidgetPreview';
 import { Text, View, useThemeColor } from '@/components/Themed';
 import { fmtFt, fmtMinutes } from '@/lib/format';
-import { useBeaches, useBeachTides } from '@/lib/hooks';
+import { useBeaches, useBeachTides, useLoad } from '@/lib/hooks';
 import { pushSupported, registerForPush } from '@/lib/notifications';
 import { speciesForBeach } from '@/lib/species';
 import { useUser } from '@/lib/store';
+import { loadForecast } from '@/lib/tides';
 import { buildBeachTideEntries, chartWindow, effectivePick } from '@/lib/widget-data';
 import { WIDGET_COLORS } from '@/widgets/types';
 
@@ -281,16 +282,23 @@ function WidgetSettings() {
   const choices = ids.map((id) => byId.get(id)).filter((b) => !!b);
   const beach = shown.bidn ? byId.get(shown.bidn) : undefined;
   const species = beach ? speciesForBeach(beach) : [];
-  const tides = useBeachTides(beach);
+  const beachTides = useBeachTides(beach);
+  // A tide station picked from the tide map, TideWidget style.
+  const stationId = shown.station?.id ?? null;
+  const stationTides = useLoad(() => (stationId ? loadForecast(stationId) : Promise.resolve(null)), [stationId]);
+  const tides = {
+    loading: stationId ? stationTides.loading : beachTides.loading,
+    data: stationId ? stationTides.data : (beachTides.data?.tides ?? null),
+  };
   // The same content the home-screen widget gets right now.
   const preview = useMemo(
-    () => buildBeachTideEntries(shown, prefs, beach, tides.data?.tides ?? null)[0].props,
-    [shown, prefs, beach, tides.data],
+    () => buildBeachTideEntries(shown, prefs, beach, tides.data)[0].props,
+    [shown, prefs, beach, tides.data], // eslint-disable-line react-hooks/exhaustive-deps
   );
   // The chart, drawn by the same code that draws the Android widget's.
   const chartUri = useMemo(() => {
-    const t = tides.data?.tides;
-    if (!t || !shown.species) return null;
+    const t = tides.data;
+    if (!t || (!shown.species && !shown.station)) return null;
     const at = new Date();
     const png = tideChartPng(t, {
       width: PREVIEW_CHART.w * 2,
@@ -298,11 +306,11 @@ function WidgetSettings() {
       ...chartWindow(at),
       now: at,
       scale: 2,
-      harvestFt: getSpecies(shown.species).marginalTideFt,
+      harvestFt: shown.species ? getSpecies(shown.species).marginalTideFt : null,
       colors: { harvest: WIDGET_COLORS.harvest },
     });
     return png ? `data:image/png;base64,${toBase64(png)}` : null;
-  }, [tides.data, shown.species]);
+  }, [tides.data, shown.species, shown.station]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const pickBeach = (bidn: string) => {
     const b = byId.get(bidn);
@@ -319,8 +327,20 @@ function WidgetSettings() {
         Add the "Tides" widget (3x2) to your home screen. It shows the next high and low tide and a 24-hour tide chart
         for this beach: red dots are highs, blue dots are lows, the dashed line is now, and green shading is water low
         enough for the species. The dot in the corner is the day's rating with your hours, days and tide settings. It
-        fits itself to any size from 1x1 up.
+        fits itself to any size from 1x1 up. To show a plain tide station instead, open it from the Tides map and tap
+        "Show this station on my home-screen widget".
       </Text>
+      {shown.station && (
+        <>
+          <Text style={styles.h3}>Tide station</Text>
+          <View style={styles.chips}>
+            <Chip label={shown.station.name} selected onPress={() => {}} />
+          </View>
+          <Text muted style={styles.help}>
+            Pick a beach below to show a beach and species again.
+          </Text>
+        </>
+      )}
       <Text style={styles.h3}>Beach</Text>
       {choices.length === 0 ? (
         <Text muted style={styles.help}>
@@ -329,7 +349,7 @@ function WidgetSettings() {
       ) : (
         <View style={styles.chips}>
           {choices.map((b) => (
-            <Chip key={b.bidn} label={b.name} selected={shown.bidn === b.bidn} onPress={() => pickBeach(b.bidn)} />
+            <Chip key={b.bidn} label={b.name} selected={!shown.station && shown.bidn === b.bidn} onPress={() => pickBeach(b.bidn)} />
           ))}
         </View>
       )}

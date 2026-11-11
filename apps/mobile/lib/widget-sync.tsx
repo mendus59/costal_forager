@@ -14,6 +14,7 @@ import BeachTide from '@/widgets/BeachTide';
 import { EMPTY_BEACH_TIDE } from '@/widgets/types';
 import { loadCachedBeaches, loadCachedTides, loadTides, stationFor } from './data';
 import { useBeaches } from './hooks';
+import { loadForecast } from './tides';
 import { writeWidgetCharts } from './widget-chart';
 import { useUser } from './store';
 import { buildBeachTideEntries, effectivePick, type BeachTidePick, type WidgetInputs } from './widget-data';
@@ -45,7 +46,8 @@ async function publishBeachTideOrThrow(input: SavedState, beaches: Beaches) {
   const pick = effectivePick(input.widget, input.favoriteBeaches, input.favoriteSpecies, beaches);
   const beach = pick.bidn ? beaches.find((b) => b.bidn === pick.bidn) : undefined;
   let tides = null;
-  if (beach) {
+  if (pick.station) tides = await loadForecast(pick.station.id).catch(() => null);
+  else if (beach) {
     const station = await stationFor(beach).catch(() => null);
     if (station) tides = await tidesWithFallback(station.id);
   }
@@ -55,9 +57,9 @@ async function publishBeachTideOrThrow(input: SavedState, beaches: Beaches) {
     return;
   }
   const { date, props } = entries[0];
-  if (tides && pick.species && props.curve.length > 0) {
+  if (tides && props.curve.length > 0) {
     try {
-      const harvestFt = getSpecies(pick.species).marginalTideFt;
+      const harvestFt = pick.species ? getSpecies(pick.species).marginalTideFt : null;
       props.charts = writeWidgetCharts('BeachTide', tides, date, harvestFt, !!(props.species || props.note));
     } catch {
       // Without a chart image the widget still shows the times.

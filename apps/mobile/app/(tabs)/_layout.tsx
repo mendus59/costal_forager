@@ -29,6 +29,15 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
+        name="tides"
+        options={{
+          title: 'Tides',
+          tabBarIcon: ({ color }) => (
+            <SymbolView name={{ ios: 'water.waves', android: 'waves', web: 'waves' }} tintColor={color} size={26} />
+          ),
+        }}
+      />
+      <Tabs.Screen
         name="today"
         options={{
           title: 'Today',

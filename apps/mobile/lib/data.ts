@@ -72,7 +72,7 @@ export async function cachedStale<T>(key: string): Promise<T | null> {
   }
 }
 
-async function getJson(url: string): Promise<unknown> {
+export async function getJson(url: string): Promise<unknown> {
   const res = await fetch(url);
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return res.json();

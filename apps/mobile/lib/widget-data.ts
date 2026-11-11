@@ -31,6 +31,8 @@ export interface WidgetInputs {
 export interface BeachTidePick {
   bidn: string | null;
   species: SpeciesId | null;
+  /** A plain tide station (from the tide map), shown when no beach is picked. */
+  station?: { id: string; name: string } | null;
 }
 
 /**
@@ -44,7 +46,8 @@ export function effectivePick(
   favoriteSpecies: readonly SpeciesId[],
   beaches: readonly Beach[],
 ): BeachTidePick & { auto: boolean } {
-  if (pick?.bidn && pick.species) return { ...pick, auto: false };
+  if (pick?.bidn && pick.species) return { bidn: pick.bidn, species: pick.species, auto: false };
+  if (!pick?.bidn && pick?.station) return { bidn: null, species: null, station: pick.station, auto: false };
   const byId = new Map(beaches.map((b) => [b.bidn, b]));
   for (const id of pick?.bidn ? [pick.bidn, ...favoriteBeaches] : favoriteBeaches) {
     const b = byId.get(id);
@@ -68,6 +71,7 @@ export function buildBeachTideEntries(
   tides: TideEvent[] | null,
   now = new Date(),
 ): { date: Date; props: BeachTideProps }[] {
+  if (!pick.bidn && pick.station) return buildStationEntries(pick.station, tides, now);
   if (!pick.bidn || !pick.species) return [{ date: now, props: EMPTY_BEACH_TIDE }];
   const species = speciesName(pick.species);
   const url = `coastalforager://beach/${pick.bidn}`;
@@ -102,6 +106,48 @@ export function buildBeachTideEntries(
     .filter((t) => t <= until)
     .sort((a, b) => a - b)
     .map((t) => ({ date: new Date(t), props: beachTideAt(pick.species!, beach, ctx, tides, prefs, new Date(t)) }));
+}
+
+/**
+ * TideWidget's widget: a tide station's name, next high and low and chart,
+ * with no species or rating. Changes at each hour and each tide turn.
+ */
+export function buildStationEntries(
+  station: { id: string; name: string },
+  tides: TideEvent[] | null,
+  now = new Date(),
+): { date: Date; props: BeachTideProps }[] {
+  const url = `coastalforager://station/${station.id}`;
+  const base = { ...EMPTY_BEACH_TIDE, beach: station.name, note: 'Tide station', url };
+  if (!tides || tides.length === 0) return [{ date: now, props: { ...base, note: 'Open the app to load tides.' } }];
+  const until = now.getTime() + 86400000;
+  const times = new Set<number>([now.getTime()]);
+  for (const e of tides) {
+    const t = e.time.getTime();
+    if (t > now.getTime() && t <= until) times.add(t + 60000);
+  }
+  for (let h = 1; h <= 24; h++) times.add(Math.floor(now.getTime() / 3600000) * 3600000 + h * 3600000);
+  return [...times]
+    .filter((t) => t <= until)
+    .sort((a, b) => a - b)
+    .map((t) => {
+      const at = new Date(t);
+      const today = localDateKey(at);
+      const { high, low } = nextHighAndLow(tides, at);
+      return {
+        date: at,
+        props: {
+          ...base,
+          highTime: high ? tideTime(high, today) : '--',
+          highFt: high ? fmtFt(high.heightFt) : '',
+          lowTime: low ? tideTime(low, today) : '--',
+          lowFt: low ? fmtFt(low.heightFt) : '',
+          highShort: high ? shortTime(high, today) : '--',
+          lowShort: low ? shortTime(low, today) : '--',
+          ...tideCurveData(tides, at),
+        },
+      };
+    });
 }
 
 const weekday = new Intl.DateTimeFormat('en-US', { timeZone: 'UTC', weekday: 'short' });

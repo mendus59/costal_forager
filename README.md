@@ -7,6 +7,13 @@ day when the tide is low enough during the hours you want to be out.
 Research behind it (species, tide heights, beaches, data sources):
 [docs/research.md](docs/research.md).
 
+It also carries everything from the earlier TideWidget app, which it
+replaces: a tide map of every NOAA station in the US (dots colored blue at
+low tide through red at high tide, with a 24-hour slider and play button),
+search for places and stations, a 7-day view per station, Areas (stations
+that tide together), and a resizable tide widget that can show a plain
+station.
+
 > Guidance only. Before you harvest, check the
 > [DOH shellfish safety map](https://doh.wa.gov/shellfishsafety) or call the
 > biotoxin hotline at 1-800-562-5632, and confirm the WDFW season.
@@ -21,7 +28,7 @@ Research behind it (species, tide heights, beaches, data sources):
 | `supabase/functions` | Scheduled sync jobs and the `send-alerts` push job (Deno edge functions). |
 | `supabase/cron.sql` | Schedules every job with `pg_cron` + `pg_net`. |
 | `scripts/deploy-supabase.sh` | One-shot backend deploy: schema, seed, functions, first sync, schedules. |
-| `apps/mobile` | Expo app (iOS, Android, web): Today, Beaches, Beach detail, Settings, home-screen widget. |
+| `apps/mobile` | Expo app (iOS, Android, web): Map, Tides (tide map, station week view, Areas), Today, Beaches, Beach detail, Settings, home-screen widget. |
 
 ## Data sources
 
@@ -29,6 +36,8 @@ Research behind it (species, tide heights, beaches, data sources):
 | --- | --- | --- | --- |
 | Beaches, safe-to-harvest status, species closures, clam/oyster seasons | WA DOH Recreational Shellfish Beaches ArcGIS layer | `sync-doh` | Hourly |
 | Tide stations and high/low predictions (ft MLLW) | NOAA CO-OPS Data and Metadata APIs | `sync-tides` | Daily (40 stations per run) |
+| Tide map, station week view and Areas (any US station) | NOAA CO-OPS, read directly by the app (only stations on screen) | none | On demand, cached 6 hours |
+| Place search on the tide map | OpenStreetMap Nominatim (on Enter or a pause in typing) | none | On demand |
 | Razor clam dig days | WDFW razor clam page (no feed; parsed) | `sync-razor-digs` | Daily |
 | Which species are common on each beach | WDFW beach page "Harvest profile" (parsed) | `sync-beach-profiles` | Every 30 min, 25 beaches a batch |
 | Sunrise and sunset | Computed in `packages/core/src/sun.ts` | none | n/a |

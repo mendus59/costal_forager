@@ -10,7 +10,7 @@ import {
   WDFW_RAZOR_PAGE,
   type SpeciesId,
 } from '@costal-forager/core';
-import { Stack, useLocalSearchParams } from 'expo-router';
+import { Link, Stack, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Platform, Pressable, ScrollView, StyleSheet } from 'react-native';
 
@@ -107,7 +107,12 @@ export default function BeachScreen() {
         <Text style={styles.h2}>Species here</Text>
         {tides.data && (
           <Text muted style={styles.small}>
-            Tides from NOAA {tides.data.station.name} ({tides.data.km.toFixed(0)} km away)
+            Tides from NOAA {tides.data.station.name} ({tides.data.km.toFixed(0)} km away).{' '}
+            <Link
+              href={{ pathname: '/station/[id]', params: { id: tides.data.station.id, name: tides.data.station.name } }}
+              style={{ color: tint }}>
+              Week of tides
+            </Link>
           </Text>
         )}
         {tides.loading && !tides.data && <ActivityIndicator style={{ marginVertical: 8 }} />}
