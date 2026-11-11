@@ -1,11 +1,12 @@
 /**
  * iOS home-screen widget (WidgetKit via expo-widgets, systemMedium): the
  * beach and species, the next high and low tide, and a 24-hour tide chart
- * (Swift Charts), with the day's rating as a small colored dot in the
- * top-right corner. The layout function is serialized and run by the widget
+ * drawn like TideWidget's (Swift Charts: a filled curve with a dot on each
+ * high and low, and a gray dot along the bottom at now), with the day's
+ * rating as a small colored dot in the top-right corner. The layout function is serialized and run by the widget
  * extension, so it may only use its props and the SwiftUI components below.
  */
-import { Chart, Circle, HStack, Spacer, Text, VStack } from '@expo/ui/swift-ui';
+import { Chart, Circle, HStack, Spacer, Text, VStack, ZStack } from '@expo/ui/swift-ui';
 import { containerBackground, font, foregroundStyle, frame, lineLimit, widgetURL } from '@expo/ui/swift-ui/modifiers';
 import { createWidget } from 'expo-widgets';
 
@@ -36,13 +37,33 @@ const BeachTide = (p: BeachTideProps) => {
           </VStack>
         </HStack>
       ) : null}
-      {p.bars.length > 0 ? (
-        <Chart
-          type="bar"
-          data={p.bars.map((b, i) => ({ x: i, y: 0.1 + b.h, color: b.c }))}
-          barStyle={{ cornerRadius: 2 }}
-          modifiers={[frame({ maxWidth: 10000, minHeight: 30, maxHeight: 40 })]}
-        />
+      {p.curve.length > 0 ? (
+        <ZStack modifiers={[frame({ maxWidth: 10000, minHeight: 30, maxHeight: 44 })]}>
+          <Chart
+            type="area"
+            data={p.curve.map((y, i) => ({ x: i, y }))}
+            areaStyle={{ color: '#2159cc55' }}
+            modifiers={[frame({ maxWidth: 10000, maxHeight: 10000 })]}
+          />
+          <Chart
+            type="line"
+            data={p.curve.map((y, i) => ({ x: i, y }))}
+            lineStyle={{ color: '#2159cc', width: 2.2 }}
+            modifiers={[frame({ maxWidth: 10000, maxHeight: 10000 })]}
+          />
+          <Chart
+            type="point"
+            data={[
+              ...p.turns.map((t) => ({ x: t.x, y: t.y, color: t.high ? '#e03833' : '#2159cc' })),
+              { x: p.nowX, y: 0, color: '#88888899' },
+              // Clear corner points keep this chart's axes the same as the curve's.
+              { x: 0, y: 0, color: '#00000000' },
+              { x: p.curve.length - 1, y: 1, color: '#00000000' },
+            ]}
+            pointStyle={{ pointStyle: 'circle', pointSize: 7 }}
+            modifiers={[frame({ maxWidth: 10000, maxHeight: 10000 })]}
+          />
+        </ZStack>
       ) : null}
     </VStack>
   );

@@ -52,15 +52,15 @@
             {
               "name": "BeachTide",
               "displayName": "Tides",
-              "description": "Next high and low tide and a tide chart for your beach, with today's rating as a colored dot.",
+              "description": "Next high and low tide and a 24-hour tide chart for your beach, with today's rating as a colored dot. Resizes from 1x1.",
               "ios": {
                 "supportedFamilies": [
                   "systemMedium"
                 ]
               },
               "android": {
-                "minWidth": 180,
-                "minHeight": 110,
+                "minWidth": 40,
+                "minHeight": 40,
                 "targetCellWidth": 3,
                 "targetCellHeight": 2,
                 "resizeMode": "both"

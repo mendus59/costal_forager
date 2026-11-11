@@ -3,6 +3,7 @@
  * favorites, settings or data change, and a background task refreshes it
  * about every few hours from cached data (plus a tide refresh when online).
  */
+import { getSpecies } from '@costal-forager/core';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as BackgroundTask from 'expo-background-task';
 import * as TaskManager from 'expo-task-manager';
@@ -13,6 +14,7 @@ import BeachTide from '@/widgets/BeachTide';
 import { EMPTY_BEACH_TIDE } from '@/widgets/types';
 import { loadCachedBeaches, loadCachedTides, loadTides, stationFor } from './data';
 import { useBeaches } from './hooks';
+import { writeWidgetCharts } from './widget-chart';
 import { useUser } from './store';
 import { buildBeachTideEntries, effectivePick, type BeachTidePick, type WidgetInputs } from './widget-data';
 
@@ -48,8 +50,20 @@ async function publishBeachTideOrThrow(input: SavedState, beaches: Beaches) {
     if (station) tides = await tidesWithFallback(station.id);
   }
   const entries = buildBeachTideEntries(pick, input.prefs, beach, tides);
-  if (Platform.OS === 'ios') BeachTide.updateTimeline(entries);
-  else BeachTide.updateSnapshot(entries[0].props);
+  if (Platform.OS === 'ios') {
+    BeachTide.updateTimeline(entries);
+    return;
+  }
+  const { date, props } = entries[0];
+  if (tides && pick.species && props.curve.length > 0) {
+    try {
+      const harvestFt = getSpecies(pick.species).marginalTideFt;
+      props.charts = writeWidgetCharts('BeachTide', tides, date, harvestFt, !!(props.species || props.note));
+    } catch {
+      // Without a chart image the widget still shows the times.
+    }
+  }
+  BeachTide.updateSnapshot(props);
 }
 
 // Background refresh: runs without React, so it reads the saved user state.

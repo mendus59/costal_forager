@@ -97,14 +97,20 @@ eas build --profile development --platform android   # or ios
   these up on the first build.
 * **Android** push needs an FCM key uploaded to EAS
   (`eas credentials`, then "Google Service Account Key for FCM V1").
-* The "Tides" widget (Android 3x2, iOS medium) shows one beach and species,
-  picked in Settings (or the first favorite), with the next high and low tide,
-  a 24-hour tide chart (green bars are low enough for the species), and the
-  day's rating as a colored dot in the corner. The tide curve math comes from
-  the TideWidget project (`packages/core/src/tidemath.ts`). Tapping it opens
-  that beach. iOS gets a timeline of
-  entries; Android gets a snapshot, refreshed by a background task every few
-  hours and whenever the app opens.
+* The "Tides" widget (Android 3x2 by default and resizable from 1x1, iOS
+  medium) shows one beach and species, picked in Settings (or the first
+  favorite), with the next high and low tide, a 24-hour tide chart drawn like
+  TideWidget's (smooth curve, red dots on highs, blue on lows, a dashed line at
+  now, green shading where the water is low enough for the species), and the
+  day's rating as a colored dot in the corner. Like TideWidget it fits itself
+  to its size: compact times at 1 column, High and Low at 2, the beach,
+  species and heights at 3, and the chart from 2 rows tall. Android widgets
+  have no canvas, so the app draws the chart into PNGs
+  (`packages/core/src/tidechart.ts`, `apps/mobile/lib/widget-chart.ts`), and
+  `scripts/patch-expo-widgets.cjs` passes the widget's size to its layout.
+  Tapping it opens that beach. iOS gets a timeline of entries; Android gets a
+  snapshot, refreshed by a background task every few hours and whenever the
+  app opens.
 
 #### Android APK without an Expo account
 
