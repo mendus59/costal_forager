@@ -1,18 +1,28 @@
-import { DOH_SAFETY_MAP, getSpecies, SPECIES, WDFW_RAZOR_PAGE, type SpeciesId, type TimeWindow } from '@costal-forager/core';
+import {
+  DOH_SAFETY_MAP,
+  getSpecies,
+  SPECIES,
+  tideChartPng,
+  toBase64,
+  WDFW_RAZOR_PAGE,
+  type SpeciesId,
+  type TimeWindow,
+} from '@costal-forager/core';
 import { useMemo, useState } from 'react';
 import { Platform, Pressable, ScrollView, StyleSheet } from 'react-native';
 
 import { Chip } from '@/components/Badges';
 import { ExternalLink } from '@/components/ExternalLink';
 import { Stepper } from '@/components/Stepper';
-import { BeachTidePreview } from '@/components/WidgetPreview';
+import { BeachTidePreview, PREVIEW_CHART } from '@/components/WidgetPreview';
 import { Text, View, useThemeColor } from '@/components/Themed';
 import { fmtFt, fmtMinutes } from '@/lib/format';
 import { useBeaches, useBeachTides } from '@/lib/hooks';
 import { pushSupported, registerForPush } from '@/lib/notifications';
 import { speciesForBeach } from '@/lib/species';
 import { useUser } from '@/lib/store';
-import { buildBeachTideEntries, effectivePick } from '@/lib/widget-data';
+import { buildBeachTideEntries, chartWindow, effectivePick } from '@/lib/widget-data';
+import { WIDGET_COLORS } from '@/widgets/types';
 
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
@@ -277,6 +287,22 @@ function WidgetSettings() {
     () => buildBeachTideEntries(shown, prefs, beach, tides.data?.tides ?? null)[0].props,
     [shown, prefs, beach, tides.data],
   );
+  // The chart, drawn by the same code that draws the Android widget's.
+  const chartUri = useMemo(() => {
+    const t = tides.data?.tides;
+    if (!t || !shown.species) return null;
+    const at = new Date();
+    const png = tideChartPng(t, {
+      width: PREVIEW_CHART.w * 2,
+      height: PREVIEW_CHART.h * 2,
+      ...chartWindow(at),
+      now: at,
+      scale: 2,
+      harvestFt: getSpecies(shown.species).marginalTideFt,
+      colors: { harvest: WIDGET_COLORS.harvest },
+    });
+    return png ? `data:image/png;base64,${toBase64(png)}` : null;
+  }, [tides.data, shown.species]);
 
   const pickBeach = (bidn: string) => {
     const b = byId.get(bidn);
@@ -291,8 +317,9 @@ function WidgetSettings() {
       <Text style={styles.h2}>Home-screen widget</Text>
       <Text muted style={styles.help}>
         Add the "Tides" widget (3x2) to your home screen. It shows the next high and low tide and a 24-hour tide chart
-        for this beach. Green bars are low enough for the species, and the dot in the corner is the day's rating with
-        your hours, days and tide settings.
+        for this beach: red dots are highs, blue dots are lows, the dashed line is now, and green shading is water low
+        enough for the species. The dot in the corner is the day's rating with your hours, days and tide settings. It
+        fits itself to any size from 1x1 up.
       </Text>
       <Text style={styles.h3}>Beach</Text>
       {choices.length === 0 ? (
@@ -327,7 +354,10 @@ function WidgetSettings() {
         </Text>
       )}
       <Text style={styles.h3}>Preview</Text>
-      <BeachTidePreview p={tides.loading && !tides.data && beach ? { ...preview, highTime: '', lowTime: '', bars: [], note: 'Loading tides…' } : preview} />
+      <BeachTidePreview
+        p={tides.loading && !tides.data && beach ? { ...preview, highTime: '', lowTime: '', curve: [], note: 'Loading tides…' } : preview}
+        chartUri={tides.loading && !tides.data ? null : chartUri}
+      />
       <Text muted style={[styles.help, { textAlign: 'center' }]}>
         Tap the widget on your home screen to open this beach in the app.
       </Text>

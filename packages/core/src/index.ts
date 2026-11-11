@@ -9,3 +9,5 @@ export * from "./scoring.ts";
 export * from "./rows.ts";
 export * from "./alerts.ts";
 export * from "./tidemath.ts";
+export * from "./png.ts";
+export * from "./tidechart.ts";

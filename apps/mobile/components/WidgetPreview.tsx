@@ -1,12 +1,16 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { Image, StyleSheet, Text, View } from 'react-native';
 
-import type { BeachTideProps } from '@/widgets/types';
+import { WIDGET_COLORS, type BeachTideProps } from '@/widgets/types';
+
+/** The preview chart's size in dp. */
+export const PREVIEW_CHART = { w: 292, h: 60 };
 
 /**
  * An in-app picture of the home-screen widget, drawn from the same props the
- * real widget gets and laid out like the Android 3x2 widget.
+ * real widget gets and laid out like the Android 3x2 widget. `chartUri` is
+ * the tide chart image, drawn by the same code as the widget's.
  */
-export function BeachTidePreview({ p }: { p: BeachTideProps }) {
+export function BeachTidePreview({ p, chartUri }: { p: BeachTideProps; chartUri?: string | null }) {
   const sub = [p.species, p.note].filter(Boolean).join(' · ');
   const tides = p.highTime || p.lowTime;
   return (
@@ -33,21 +37,28 @@ export function BeachTidePreview({ p }: { p: BeachTideProps }) {
       {tides ? (
         <View style={styles.tides}>
           <View style={styles.tide}>
-            <Text style={[styles.label, { color: p.muted }]}>{`▲ High ${p.highFt}`}</Text>
+            <Text style={[styles.label, { color: p.muted }]}>
+              <Text style={{ color: WIDGET_COLORS.high }}>▲</Text>
+              {`  High  ${p.highFt}`}
+            </Text>
             <Text style={[styles.time, { color: p.fg }]}>{p.highTime}</Text>
           </View>
           <View>
-            <Text style={[styles.label, { color: p.muted }]}>{`▼ Low ${p.lowFt}`}</Text>
+            <Text style={[styles.label, { color: p.muted }]}>
+              <Text style={{ color: WIDGET_COLORS.lowText }}>▼</Text>
+              {`  Low  ${p.lowFt}`}
+            </Text>
             <Text style={[styles.time, { color: p.fg }]}>{p.lowTime}</Text>
           </View>
         </View>
       ) : null}
-      {p.bars.length > 0 ? (
-        <View style={styles.chart}>
-          {p.bars.map((b, i) => (
-            <View key={i} style={[styles.bar, { height: 3 + Math.round(b.h * 29), backgroundColor: b.c }]} />
-          ))}
-        </View>
+      {chartUri && p.curve.length > 0 ? (
+        <Image
+          source={{ uri: chartUri }}
+          resizeMode="stretch"
+          style={styles.chart}
+          accessibilityLabel="Tide chart, next 24 hours"
+        />
       ) : null}
     </View>
   );
@@ -68,9 +79,8 @@ const styles = StyleSheet.create({
   beach: { fontSize: 14, fontWeight: 'bold', marginRight: 18 },
   sub: { fontSize: 11 },
   tides: { flexDirection: 'row', marginVertical: 4 },
-  tide: { marginRight: 16 },
+  tide: { marginRight: 18 },
   label: { fontSize: 10 },
   time: { fontSize: 15, fontWeight: 'bold' },
-  chart: { flexDirection: 'row', alignItems: 'flex-end', gap: 1, height: 32 },
-  bar: { width: 5, borderRadius: 2 },
+  chart: { width: '100%', height: PREVIEW_CHART.h, marginTop: 2 },
 });

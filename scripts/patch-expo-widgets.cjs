@@ -1,10 +1,16 @@
 /**
- * Makes Android home-screen widgets open the app when tapped.
+ * Two fixes to expo-widgets (SDK 58) Android home-screen widgets:
  *
- * expo-widgets (SDK 58) renders Android widgets with Glance but gives the
- * widget itself no tap action, unlike iOS where `widgetURL` does this. This
- * patch makes the whole widget clickable: it opens the widget's `url` prop
- * (a coastalforager:// deep link) or, without one, the app's main screen.
+ * 1. Open the app when tapped. expo-widgets renders Android widgets with
+ *    Glance but gives the widget itself no tap action, unlike iOS where
+ *    `widgetURL` does this. The whole widget becomes clickable: it opens the
+ *    widget's `url` prop (a coastalforager:// deep link) or, without one, the
+ *    app's main screen.
+ * 2. Tell the layout its size. The layout gets `widthDp` and `heightDp` in its
+ *    environment (its second argument) so it can fit itself to the widget, as
+ *    TideWidget does, and the size is saved to
+ *    <files>/widget-size-<name>.txt so the app can draw the tide chart image
+ *    at the shape it will be shown.
  *
  * Runs after `npm install` / `npm ci` (postinstall). It only edits the
  * installed copy in node_modules, is idempotent, and fails loudly if
@@ -20,13 +26,14 @@ const file = path.join(
   'node_modules/expo-widgets/android/src/main/java/expo/modules/widgets/ExpoWidgetsPeekWidget.kt',
 );
 const MARK = '// coastal-forager: open the app on tap';
+const SIZE_MARK = '// coastal-forager: widget size';
 
 if (!fs.existsSync(file)) {
   console.log('patch-expo-widgets: expo-widgets not installed, skipping');
   process.exit(0);
 }
 let src = fs.readFileSync(file, 'utf8');
-if (src.includes(MARK)) process.exit(0);
+if (src.includes(MARK) && src.includes(SIZE_MARK)) process.exit(0);
 
 const replace = (from, to) => {
   if (!src.includes(from)) {
@@ -36,21 +43,22 @@ const replace = (from, to) => {
   src = src.replace(from, to);
 };
 
-replace(
-  'import android.content.Context\n',
-  [
-    'import android.content.Context',
-    'import android.content.Intent',
-    'import android.net.Uri',
-    'import androidx.glance.action.clickable',
-    'import androidx.glance.appwidget.action.actionStartActivity',
-    'import androidx.glance.layout.fillMaxSize',
-    '',
-  ].join('\n'),
-);
-replace(
-  '    return node.toPeekRoot(appContext, InteractionSource.Widget(widgetName), size)\n',
-  `    val root = node.toPeekRoot(appContext, InteractionSource.Widget(widgetName), size)
+if (!src.includes(MARK)) {
+  replace(
+    'import android.content.Context\n',
+    [
+      'import android.content.Context',
+      'import android.content.Intent',
+      'import android.net.Uri',
+      'import androidx.glance.action.clickable',
+      'import androidx.glance.appwidget.action.actionStartActivity',
+      'import androidx.glance.layout.fillMaxSize',
+      '',
+    ].join('\n'),
+  );
+  replace(
+    '    return node.toPeekRoot(appContext, InteractionSource.Widget(widgetName), size)\n',
+    `    val root = node.toPeekRoot(appContext, InteractionSource.Widget(widgetName), size)
     ${MARK}
     val url = props?.get("url") as? String
     val intent = (
@@ -60,6 +68,19 @@ replace(
     if (intent != null) root.modifier = root.modifier.fillMaxSize().clickable(actionStartActivity(intent))
     return root
 `,
-);
+  );
+}
+if (!src.includes(SIZE_MARK)) {
+  replace(
+    '    val environment = getWidgetEnvironment(appContext)\n',
+    `    ${SIZE_MARK}
+    runCatching {
+      java.io.File(appContext.filesDir, "widget-size-$widgetName.txt").writeText("\${size.width.value},\${size.height.value}")
+    }
+    val environment = getWidgetEnvironment(appContext) +
+      mapOf("widthDp" to size.width.value.toDouble(), "heightDp" to size.height.value.toDouble())
+`,
+  );
+}
 fs.writeFileSync(file, src);
-console.log('patch-expo-widgets: Android widgets now open the app on tap');
+console.log('patch-expo-widgets: Android widgets now open the app on tap and know their size');

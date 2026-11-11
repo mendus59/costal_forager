@@ -17,7 +17,7 @@ import {
 } from '@costal-forager/core';
 
 import { RatingColors } from '@/constants/Colors';
-import { EMPTY_BEACH_TIDE, WIDGET_COLORS, type BeachTideProps, type TideBar } from '@/widgets/types';
+import { EMPTY_BEACH_TIDE, WIDGET_COLORS, type BeachTideProps, type TideTurn } from '@/widgets/types';
 import { toContext, type Beach } from './data';
 import { fmtFt, fmtTime, relativeDay } from './format';
 import { speciesForBeach, speciesName } from './species';
@@ -112,23 +112,37 @@ function tideTime(e: TideEvent, today: string): string {
   return day === today ? fmtTime(e.time) : `${weekday.format(new Date(`${day}T12:00:00Z`))} ${fmtTime(e.time)}`;
 }
 
+/** "2:40p" today, else "Sa 2:40p", for the narrowest widget. */
+function shortTime(e: TideEvent, today: string): string {
+  const t = fmtTime(e.time).replace(/\s([AP])M$/, (_, m: string) => m.toLowerCase());
+  const day = localDateKey(e.time);
+  return day === today ? t : `${weekday.format(new Date(`${day}T12:00:00Z`)).slice(0, 2)} ${t}`;
+}
+
+/** The widget chart's window, like TideWidget's: 3 hours back through 21 hours ahead. */
+export function chartWindow(at: Date): { from: Date; to: Date } {
+  return { from: new Date(at.getTime() - 3 * 3600000), to: new Date(at.getTime() + 21 * 3600000) };
+}
+
+const CURVE_STEPS = 48;
+
 /**
- * Hourly bars from 2 hours ago through 21 hours ahead, like TideWidget's
- * graph. Bars at or below the species' marginal tide (low enough to harvest)
- * are green and the current hour is white.
+ * The iOS chart's data: water height from 0 (lowest in the window) to 1
+ * (highest) every half hour, the highs and lows on it, and where now is.
  */
-export function tideBars(tides: TideEvent[], at: Date, harvestFt: number): TideBar[] {
-  const hour = Math.floor(at.getTime() / 3600000) * 3600000;
-  const from = hour - 2 * 3600000;
-  const points = Array.from({ length: 24 }, (_, i) => tideHeightAt(tides, new Date(from + i * 3600000)));
+export function tideCurveData(tides: TideEvent[], at: Date): { curve: number[]; turns: TideTurn[]; nowX: number } {
+  const { from, to } = chartWindow(at);
+  const step = (to.getTime() - from.getTime()) / CURVE_STEPS;
+  const points = Array.from({ length: CURVE_STEPS + 1 }, (_, i) => tideHeightAt(tides, new Date(from.getTime() + i * step)));
   const known = points.filter((h): h is number => h !== null);
-  if (known.length < 2) return [];
+  if (known.length < 2) return { curve: [], turns: [], nowX: 0 };
   const lo = Math.min(...known);
   const hi = Math.max(Math.max(...known), lo + 0.1);
-  return points.map((h, i) => ({
-    h: h === null ? 0 : (h - lo) / (hi - lo),
-    c: i === 2 ? WIDGET_COLORS.now : h !== null && h <= harvestFt ? WIDGET_COLORS.harvest : WIDGET_COLORS.water,
-  }));
+  const norm = (h: number) => (h - lo) / (hi - lo);
+  const turns = tides
+    .filter((e) => e.time >= from && e.time <= to)
+    .map((e) => ({ x: (e.time.getTime() - from.getTime()) / step, y: norm(e.heightFt), high: e.type === 'H' }));
+  return { curve: points.map((h) => (h === null ? 0 : norm(h))), turns, nowX: (at.getTime() - from.getTime()) / step };
 }
 
 function beachTideAt(
@@ -172,7 +186,10 @@ function beachTideAt(
     highFt: high ? fmtFt(high.heightFt) : '',
     lowTime: low ? tideTime(low, today) : '--',
     lowFt: low ? fmtFt(low.heightFt) : '',
-    bars: tideBars(tides, at, getSpecies(speciesId).marginalTideFt),
+    highShort: high ? shortTime(high, today) : '--',
+    lowShort: low ? shortTime(low, today) : '--',
+    charts: [],
+    ...tideCurveData(tides, at),
     note,
     url: `coastalforager://beach/${beach.bidn}`,
   };
