@@ -17,7 +17,7 @@ import {
 } from '@costal-forager/core';
 
 import { RatingColors } from '@/constants/Colors';
-import { EMPTY_BEACH_TIDE, WIDGET_COLORS, type BeachTideProps, type TideTurn } from '@/widgets/types';
+import { EMPTY_BEACH_TIDE, WIDGET_COLORS, type BeachTideProps, type TideTurn, type WidgetTide } from '@/widgets/types';
 import { toContext, type Beach } from './data';
 import { fmtFt, fmtTime, relativeDay } from './format';
 import { speciesForBeach, speciesName } from './species';
@@ -145,6 +145,7 @@ export function buildStationEntries(
           highShort: high ? shortTime(high, today) : '--',
           lowShort: low ? shortTime(low, today) : '--',
           ...tideCurveData(tides, at),
+          ...androidTideProps(tides, at),
         },
       };
     });
@@ -165,9 +166,43 @@ function shortTime(e: TideEvent, today: string): string {
   return day === today ? t : `${weekday.format(new Date(`${day}T12:00:00Z`)).slice(0, 2)} ${t}`;
 }
 
+/**
+ * The highs and lows from `at` through the next 3 days, with their times
+ * written both ways, so the Android layout can pick the next high and low
+ * when it renders (Android redraws the widget every 30 minutes without the
+ * app running).
+ */
+export function upcomingTides(tides: TideEvent[], at: Date): WidgetTide[] {
+  const end = at.getTime() + 3 * 86400000;
+  return tides
+    .filter((e) => e.time.getTime() > at.getTime() && e.time.getTime() <= end)
+    .map((e) => {
+      const day = localDateKey(e.time);
+      const wd = weekday.format(new Date(`${day}T12:00:00Z`));
+      const time = fmtTime(e.time);
+      const short = time.replace(/\s([AP])M$/, (_, m: string) => m.toLowerCase());
+      return {
+        t: e.time.getTime(),
+        high: e.type === 'H',
+        dayStart: zonedTime(day, 0).getTime(),
+        time,
+        dayTime: `${wd} ${time}`,
+        short,
+        dayShort: `${wd.slice(0, 2)} ${short}`,
+        ft: fmtFt(e.heightFt),
+      };
+    });
+}
+
 /** The widget chart's window, like TideWidget's: 3 hours back through 21 hours ahead. */
 export function chartWindow(at: Date): { from: Date; to: Date } {
   return { from: new Date(at.getTime() - 3 * 3600000), to: new Date(at.getTime() + 21 * 3600000) };
+}
+
+/** Android: the chart's window and the coming tides, for the layout to place "now" itself. */
+function androidTideProps(tides: TideEvent[], at: Date) {
+  const { from, to } = chartWindow(at);
+  return { chartFrom: from.getTime(), chartTo: to.getTime(), upcoming: upcomingTides(tides, at) };
 }
 
 const CURVE_STEPS = 48;
@@ -236,6 +271,7 @@ function beachTideAt(
     lowShort: low ? shortTime(low, today) : '--',
     charts: [],
     ...tideCurveData(tides, at),
+    ...androidTideProps(tides, at),
     note,
     url: `coastalforager://beach/${beach.bidn}`,
   };

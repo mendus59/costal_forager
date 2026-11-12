@@ -128,10 +128,12 @@ eas build --profile development --platform android   # or ios
   rows tall the chart sits below them. Charts are scaled to fit, never stretched. Android widgets
   have no canvas, so the app draws the chart into PNGs
   (`packages/core/src/tidechart.ts`, `apps/mobile/lib/widget-chart.ts`), and
-  `scripts/patch-expo-widgets.cjs` passes the widget's size to its layout.
-  Tapping it opens that beach. iOS gets a timeline of entries; Android gets a
-  snapshot, refreshed by a background task every few hours and whenever the
-  app opens.
+  `scripts/patch-expo-widgets.cjs` passes the widget's size and the time to
+  its layout. Tapping it opens that beach. iOS gets a timeline of entries;
+  Android gets a snapshot, refreshed by a background task every few hours and
+  whenever the app opens. Between those, Android redraws the widget every 30
+  minutes, and the layout draws the now line and picks the next high and low
+  from the time it renders, so they stay current.
 
 #### Android APK without an Expo account
 
