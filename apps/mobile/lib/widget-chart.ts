@@ -13,7 +13,7 @@ import { Directory, File, Paths } from 'expo-file-system';
 import { widgetsDirectory } from 'expo-widgets';
 import { PixelRatio } from 'react-native';
 
-import { CHART_RATIOS, WIDGET_COLORS, widgetGeometry, type TideChartImage } from '@/widgets/types';
+import { CHART_SHAPES, WIDGET_COLORS, widgetGeometry, type TideChartImage } from '@/widgets/types';
 import { chartWindow } from './widget-data';
 
 /** The widget's last rendered size in dp, written by the expo-widgets patch, or null before it first renders. */
@@ -39,11 +39,11 @@ export function writeWidgetCharts(name: string, tides: TideEvent[], at: Date, ha
   const size = lastWidgetSize(name);
   const g = size ? widgetGeometry(size.w, size.h, hasSub) : null;
 
-  // [width, height] in dp: the real chart box when known, then the fallbacks at a typical 56dp tall.
+  // [width, height] in dp: the real chart box when known, then the common shapes.
   const boxes: [number, number][] = [];
   if (g && g.chartH > 0) boxes.push([g.chartW, g.chartH]);
-  for (const a of CHART_RATIOS) {
-    if (!boxes.some(([w, h]) => Math.abs(Math.log(w / h / a)) < 0.1)) boxes.push([56 * a, 56]);
+  for (const [a, h] of CHART_SHAPES) {
+    if (!boxes.some(([bw, bh]) => Math.abs(Math.log(bw / bh / a)) < 0.05)) boxes.push([Math.round(h * a), h]);
   }
 
   const stamp = at.getTime();
@@ -56,7 +56,8 @@ export function writeWidgetCharts(name: string, tides: TideEvent[], at: Date, ha
       from,
       to,
       now: at,
-      scale: density,
+      // Thinner lines and dots on the small 3x1 chart.
+      scale: density * (h < 70 ? 0.8 : 1),
       harvestFt,
       colors: { harvest: WIDGET_COLORS.harvest },
     });

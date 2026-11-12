@@ -68,7 +68,7 @@
                 "minWidth": 40,
                 "minHeight": 40,
                 "targetCellWidth": 3,
-                "targetCellHeight": 2,
+                "targetCellHeight": 1,
                 "resizeMode": "both"
               }
             }
