@@ -15,7 +15,7 @@
  * computed here; the math matches widgetGeometry in ./types.
  */
 import { Box, Column, Image, Row, Text } from '@expo/ui/jetpack-compose';
-import { background, cornerRadius, fillMaxSize, padding, size } from '@expo/ui/jetpack-compose/modifiers';
+import { background, cornerRadius, fillMaxSize, padding, size, width } from '@expo/ui/jetpack-compose/modifiers';
 import { createWidget } from 'expo-widgets';
 
 import { EMPTY_BEACH_TIDE, type BeachTideProps } from './types';
@@ -27,13 +27,24 @@ const BeachTide = (p: BeachTideProps, env: unknown) => {
   const h = e.heightDp && e.heightDp > 0 ? e.heightDp : 150;
   const sub = [p.species, p.note].filter((s) => !!s).join(' · ');
 
-  // Same math as widgetGeometry() in ./types.
+  // Same math as widgetGeometry() in ./types (INLINE_TEXT_W is 148).
   const cols = w >= 180 ? 3 : w >= 110 ? 2 : 1;
   const rows = h >= 100 ? 2 : 1;
-  const pad = cols === 1 || rows === 1 ? 6 : 10;
-  const header = cols === 3 ? 56 + (sub ? 14 : 0) : cols === 2 ? 50 : 46;
-  const chartW = Math.floor(w - 2 * (pad + 2));
-  const chartH = rows === 2 ? Math.floor(h - 2 * pad - header - 4) : 0;
+  const inline = cols === 3 && rows === 1;
+  const pad = inline ? 8 : cols === 1 || rows === 1 ? 6 : 10;
+  let chartW = 0;
+  let chartH = 0;
+  if (inline) {
+    chartW = Math.floor(w - 2 * (pad + 2) - 148 - 6);
+    chartH = Math.floor(h - 2 * pad);
+    if (chartW < 40 || chartH < 24) chartW = chartH = 0;
+  } else if (rows === 2) {
+    const header = cols === 3 ? 56 + (sub ? 14 : 0) : cols === 2 ? 50 : 46;
+    chartW = Math.floor(w - 2 * (pad + 2));
+    chartH = Math.min(Math.floor(h - 2 * pad - header - 4), Math.floor(chartW / 2));
+    if (chartH < 20) chartH = 0;
+  }
+  // The drawn chart closest in shape, scaled to fit (never stretched).
   const ratio = chartH > 0 ? chartW / chartH : 0;
   let chart = '';
   let miss = Infinity;
@@ -58,6 +69,64 @@ const BeachTide = (p: BeachTideProps, env: unknown) => {
       </Text>
     </Row>
   );
+
+  const dot = p.status ? (
+    <Box modifiers={[padding(0, pad, pad, 0)]}>
+      <Box modifiers={[size(10, 10), background(p.dot), cornerRadius(5)]} />
+    </Box>
+  ) : null;
+  const chartImage =
+    hasTides && chart && chartH > 0 ? (
+      <Image
+        source={{ uri: chart }}
+        contentScale="fit"
+        contentDescription="Tide chart, next 24 hours"
+        modifiers={[size(chartW, chartH)]}
+      />
+    ) : null;
+
+  if (inline && hasTides) {
+    // 3x1: beach and times on the left, the chart on the right.
+    const line = (arrow: string, color: string, time: string, ft: string) => (
+      <Row>
+        <Text color={color} maxLines={1} style={{ fontSize: 11 }}>
+          {`${arrow} `}
+        </Text>
+        <Text color={p.fg} maxLines={1} style={{ fontSize: 14, fontWeight: 'bold' }}>
+          {`${time} `}
+        </Text>
+        <Text color={p.muted} maxLines={1} style={{ fontSize: 10 }}>
+          {ft}
+        </Text>
+      </Row>
+    );
+    return (
+      <Box contentAlignment="topEnd" modifiers={[fillMaxSize(), background(p.bg), cornerRadius(16)]}>
+        <Row verticalAlignment="center" modifiers={[fillMaxSize(), padding(pad + 2, pad, pad + 2, pad)]}>
+          <Column modifiers={[width(148), padding(0, 0, 6, 0)]}>
+            <Row verticalAlignment="center">
+              {p.status ? (
+                <Box modifiers={[padding(0, 0, 5, 0)]}>
+                  <Box modifiers={[size(8, 8), background(p.dot), cornerRadius(4)]} />
+                </Box>
+              ) : null}
+              <Text color={p.fg} maxLines={1} style={{ fontSize: 12, fontWeight: 'bold' }}>
+                {p.beach}
+              </Text>
+            </Row>
+            {p.species && h >= 84 ? (
+              <Text color={p.muted} maxLines={1} style={{ fontSize: 10 }}>
+                {p.species}
+              </Text>
+            ) : null}
+            {line('▲', highColor, p.highTime, p.highFt)}
+            {line('▼', lowColor, p.lowTime, p.lowFt)}
+          </Column>
+          {chartImage}
+        </Row>
+      </Box>
+    );
+  }
 
   return (
     <Box contentAlignment="topEnd" modifiers={[fillMaxSize(), background(p.bg), cornerRadius(16)]}>
@@ -111,20 +180,9 @@ const BeachTide = (p: BeachTideProps, env: unknown) => {
             </Column>
           </Row>
         ) : null}
-        {hasTides && chart && chartH > 0 ? (
-          <Image
-            source={{ uri: chart }}
-            contentScale="fillBounds"
-            contentDescription="Tide chart, next 24 hours"
-            modifiers={[size(chartW, chartH)]}
-          />
-        ) : null}
+        {chartImage}
       </Column>
-      {p.status ? (
-        <Box modifiers={[padding(0, pad, pad, 0)]}>
-          <Box modifiers={[size(10, 10), background(p.dot), cornerRadius(5)]} />
-        </Box>
-      ) : null}
+      {dot}
     </Box>
   );
 };

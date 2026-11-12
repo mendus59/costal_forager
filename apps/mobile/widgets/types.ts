@@ -97,19 +97,43 @@ export const EMPTY_BEACH_TIDE: BeachTideProps = {
 
 /**
  * How the Android widget lays itself out at a size (in dp), following
- * TideWidget: 1 to 3 columns of detail across, and a tide chart once it is 2
- * rows tall. The layout function repeats this math (it can't import it), and
- * the app uses it to draw the chart at the size it will be shown.
+ * TideWidget: 1 to 3 columns of detail across. At 3 columns and 1 row (3x1)
+ * the times sit on the left and a small tide chart on the right; from 2 rows
+ * tall the chart sits under the times, at most half as tall as it is wide so
+ * it never looks stretched. The layout function repeats this math (it can't
+ * import it), and the app uses it to draw the chart at the size it is shown.
  */
 export function widgetGeometry(widthDp: number, heightDp: number, hasSub: boolean) {
   const cols = widthDp >= 180 ? 3 : widthDp >= 110 ? 2 : 1;
   const rows = heightDp >= 100 ? 2 : 1;
-  const pad = cols === 1 || rows === 1 ? 6 : 10;
+  const inline = cols === 3 && rows === 1;
+  const pad = inline ? 8 : cols === 1 || rows === 1 ? 6 : 10;
+  if (inline) {
+    const chartW = Math.floor(widthDp - 2 * (pad + 2) - INLINE_TEXT_W - 6);
+    const chartH = Math.floor(heightDp - 2 * pad);
+    const ok = chartW >= 40 && chartH >= 24;
+    return { cols, rows, inline, pad, chartW: ok ? chartW : 0, chartH: ok ? chartH : 0 };
+  }
   const header = cols === 3 ? 56 + (hasSub ? 14 : 0) : cols === 2 ? 50 : 46;
-  const chartW = widthDp - 2 * (pad + 2);
-  const chartH = rows === 2 ? heightDp - 2 * pad - header - 4 : 0;
-  return { cols, rows, pad, chartW, chartH: chartH >= 20 ? chartH : 0 };
+  const chartW = Math.floor(widthDp - 2 * (pad + 2));
+  const room = rows === 2 ? Math.floor(heightDp - 2 * pad - header - 4) : 0;
+  const chartH = Math.min(room, Math.floor(chartW / 2));
+  return { cols, rows, inline, pad, chartW, chartH: chartH >= 20 ? chartH : 0 };
 }
 
-/** The chart ratios always drawn, besides the one for the widget's last known size. */
-export const CHART_RATIOS = [2.5, 4, 6];
+/** Width of the times column in the 3x1 layout. */
+export const INLINE_TEXT_W = 148;
+
+/**
+ * Chart shapes always drawn as [width:height ratio, height in dp], besides
+ * the exact one for the widget's last known size: a small one for 3x1 and a
+ * few for taller widgets. The layout shows the closest one scaled to fit, so
+ * a mismatch leaves a little space rather than stretching the chart.
+ */
+export const CHART_SHAPES: [number, number][] = [
+  [1.4, 54],
+  [1.8, 54],
+  [2, 110],
+  [2.6, 100],
+  [3.4, 80],
+];

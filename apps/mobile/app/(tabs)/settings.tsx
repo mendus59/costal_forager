@@ -14,7 +14,7 @@ import { Platform, Pressable, ScrollView, StyleSheet } from 'react-native';
 import { Chip } from '@/components/Badges';
 import { ExternalLink } from '@/components/ExternalLink';
 import { Stepper } from '@/components/Stepper';
-import { BeachTidePreview, PREVIEW_CHART } from '@/components/WidgetPreview';
+import { BeachTideInlinePreview, BeachTidePreview, PREVIEW_CHART, PREVIEW_INLINE_CHART } from '@/components/WidgetPreview';
 import { Text, View, useThemeColor } from '@/components/Themed';
 import { fmtFt, fmtMinutes } from '@/lib/format';
 import { useBeaches, useBeachTides, useLoad } from '@/lib/hooks';
@@ -295,22 +295,28 @@ function WidgetSettings() {
     () => buildBeachTideEntries(shown, prefs, beach, tides.data)[0].props,
     [shown, prefs, beach, tides.data], // eslint-disable-line react-hooks/exhaustive-deps
   );
-  // The chart, drawn by the same code that draws the Android widget's.
-  const chartUri = useMemo(() => {
+  // The charts, drawn by the same code that draws the Android widget's (3x2 and 3x1).
+  const charts = useMemo(() => {
     const t = tides.data;
     if (!t || (!shown.species && !shown.station)) return null;
     const at = new Date();
-    const png = tideChartPng(t, {
-      width: PREVIEW_CHART.w * 2,
-      height: PREVIEW_CHART.h * 2,
-      ...chartWindow(at),
-      now: at,
-      scale: 2,
-      harvestFt: shown.species ? getSpecies(shown.species).marginalTideFt : null,
-      colors: { harvest: WIDGET_COLORS.harvest },
-    });
-    return png ? `data:image/png;base64,${toBase64(png)}` : null;
+    const draw = (box: { w: number; h: number }, scale: number) => {
+      const png = tideChartPng(t, {
+        width: box.w * 2,
+        height: box.h * 2,
+        ...chartWindow(at),
+        now: at,
+        scale,
+        harvestFt: shown.species ? getSpecies(shown.species).marginalTideFt : null,
+        colors: { harvest: WIDGET_COLORS.harvest },
+      });
+      return png ? `data:image/png;base64,${toBase64(png)}` : null;
+    };
+    return { tall: draw(PREVIEW_CHART, 2), inline: draw(PREVIEW_INLINE_CHART, 1.6) };
   }, [tides.data, shown.species, shown.station]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const shownPreview =
+    tides.loading && !tides.data && beach ? { ...preview, highTime: '', lowTime: '', curve: [], note: 'Loading tides…' } : preview;
 
   const pickBeach = (bidn: string) => {
     const b = byId.get(bidn);
@@ -324,7 +330,7 @@ function WidgetSettings() {
     <View card>
       <Text style={styles.h2}>Home-screen widget</Text>
       <Text muted style={styles.help}>
-        Add the "Tides" widget (3x2) to your home screen. It shows the next high and low tide and a 24-hour tide chart
+        Add the "Tides" widget (3x1, or resize it to 3x2) to your home screen. It shows the next high and low tide and a 24-hour tide chart
         for this beach: red dots are highs, blue dots are lows, the dashed line is now, and green shading is water low
         enough for the species. The dot in the corner is the day's rating with your hours, days and tide settings. It
         fits itself to any size from 1x1 up. To show a plain tide station instead, open it from the Tides map and tap
@@ -374,10 +380,14 @@ function WidgetSettings() {
         </Text>
       )}
       <Text style={styles.h3}>Preview</Text>
-      <BeachTidePreview
-        p={tides.loading && !tides.data && beach ? { ...preview, highTime: '', lowTime: '', curve: [], note: 'Loading tides…' } : preview}
-        chartUri={tides.loading && !tides.data ? null : chartUri}
-      />
+      <Text muted style={styles.help}>
+        3x1
+      </Text>
+      <BeachTideInlinePreview p={shownPreview} chartUri={tides.loading && !tides.data ? null : charts?.inline} />
+      <Text muted style={[styles.help, { marginTop: 10 }]}>
+        3x2 (resize the widget taller)
+      </Text>
+      <BeachTidePreview p={shownPreview} chartUri={tides.loading && !tides.data ? null : charts?.tall} />
       <Text muted style={[styles.help, { textAlign: 'center' }]}>
         Tap the widget on your home screen to open this beach in the app.
       </Text>
