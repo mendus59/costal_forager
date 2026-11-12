@@ -14,6 +14,21 @@ export interface TideChartImage {
   uri: string;
 }
 
+/** A coming high or low for the Android layout, which picks the next ones when it renders. */
+export interface WidgetTide {
+  /** When, in ms since the epoch. */
+  t: number;
+  high: boolean;
+  /** Local midnight starting its day, in ms: the layout leaves the weekday off when now is past it. */
+  dayStart: number;
+  /** "3:12 PM", "Tue 3:12 AM", "3:12p", "Tu 3:12a", "+11.2 ft" */
+  time: string;
+  dayTime: string;
+  short: string;
+  dayShort: string;
+  ft: string;
+}
+
 /** A high or low on the iOS chart: x in curve steps, y from 0 to 1. */
 export interface TideTurn {
   x: number;
@@ -47,6 +62,15 @@ export interface BeachTideProps {
    * Added when the widget is published. Empty without tides.
    */
   charts: TideChartImage[];
+  /**
+   * Android: the charts' time window in ms. The charts have no "now" line;
+   * the layout draws it from the time it renders, so it stays current
+   * between app updates.
+   */
+  chartFrom: number;
+  chartTo: number;
+  /** Android: the highs and lows over the next 3 days. */
+  upcoming: WidgetTide[];
   /** iOS: water height from 0 to 1 every half hour over the same window. Empty without tides. */
   curve: number[];
   /** iOS: the highs and lows in the window, and where "now" is, in curve steps. */
@@ -88,6 +112,9 @@ export const EMPTY_BEACH_TIDE: BeachTideProps = {
   highShort: '',
   lowShort: '',
   charts: [],
+  chartFrom: 0,
+  chartTo: 0,
+  upcoming: [],
   curve: [],
   turns: [],
   nowX: 0,

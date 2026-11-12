@@ -55,7 +55,8 @@ export function writeWidgetCharts(name: string, tides: TideEvent[], at: Date, ha
       height: h * density,
       from,
       to,
-      now: at,
+      // No line here: the widget layout draws "now" from the time it renders.
+      now: null,
       // Thinner lines and dots on the small 3x1 chart.
       scale: density * (h < 70 ? 0.8 : 1),
       harvestFt,

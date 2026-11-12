@@ -11,6 +11,11 @@
  *    TideWidget does, and the size is saved to
  *    <files>/widget-size-<name>.txt so the app can draw the tide chart image
  *    at the shape it will be shown.
+ * 3. Keep "now" current. The layout also gets `nowMs`, the time it renders,
+ *    so it can draw the tide chart's now line and pick the next high and low
+ *    itself, and the widget provider asks Android to redraw it every 30
+ *    minutes (updatePeriodMillis, the shortest Android allows). A redraw only
+ *    re-runs the layout with the saved props: no network and no app start.
  *
  * Runs after `npm install` / `npm ci` (postinstall). It only edits the
  * installed copy in node_modules, is idempotent, and fails loudly if
@@ -27,13 +32,17 @@ const file = path.join(
 );
 const MARK = '// coastal-forager: open the app on tap';
 const SIZE_MARK = '// coastal-forager: widget size';
+const NOW_MARK = '// coastal-forager: render time';
+const plugin = path.join(__dirname, '..', 'node_modules/expo-widgets/plugin/build/android/withAndroidWidgetFiles.js');
+const PERIOD = 'android:updatePeriodMillis="1800000"';
 
 if (!fs.existsSync(file)) {
   console.log('patch-expo-widgets: expo-widgets not installed, skipping');
   process.exit(0);
 }
 let src = fs.readFileSync(file, 'utf8');
-if (src.includes(MARK) && src.includes(SIZE_MARK)) process.exit(0);
+let pluginSrc = fs.readFileSync(plugin, 'utf8');
+if (src.includes(MARK) && src.includes(SIZE_MARK) && src.includes(NOW_MARK) && pluginSrc.includes(PERIOD)) process.exit(0);
 
 const replace = (from, to) => {
   if (!src.includes(from)) {
@@ -82,5 +91,23 @@ if (!src.includes(SIZE_MARK)) {
 `,
   );
 }
+if (!src.includes(NOW_MARK)) {
+  replace(
+    '      mapOf("widthDp" to size.width.value.toDouble(), "heightDp" to size.height.value.toDouble())\n',
+    `      mapOf("widthDp" to size.width.value.toDouble(), "heightDp" to size.height.value.toDouble()) +
+      ${NOW_MARK}
+      mapOf("nowMs" to System.currentTimeMillis().toDouble())
+`,
+  );
+}
+if (!pluginSrc.includes(PERIOD)) {
+  const from = 'android:updatePeriodMillis="0"';
+  if (!pluginSrc.includes(from)) {
+    console.error(`patch-expo-widgets: could not find ${from} in ${plugin}. Update scripts/patch-expo-widgets.cjs.`);
+    process.exit(1);
+  }
+  pluginSrc = pluginSrc.replace(from, PERIOD);
+  fs.writeFileSync(plugin, pluginSrc);
+}
 fs.writeFileSync(file, src);
-console.log('patch-expo-widgets: Android widgets now open the app on tap and know their size');
+console.log('patch-expo-widgets: Android widgets now open the app on tap, know their size and time, and redraw every 30 minutes');
