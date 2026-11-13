@@ -4,6 +4,9 @@ name: Android APK
 # Expo account: generates the native project with `expo prebuild` and runs
 # Gradle. The APK is attached to the run and published to the rolling
 # "android-latest" pre-release, so it can be downloaded straight to a phone.
+# The release holds the versioned APK and an identical copy named
+# coastal-forager.apk, so links to
+# releases/download/android-latest/coastal-forager.apk never go stale.
 #
 # Signing uses the debug keystore from the Expo template, which is the same on
 # every build, so a newer APK installs over an older one. It is fine for
@@ -62,6 +65,7 @@ jobs:
           v="$(node -p "require('./apps/mobile/app.json').expo.version").${{ github.run_number }}"
           echo "version=$v" >> "$GITHUB_OUTPUT"
           echo "apk=coastal-forager-$v.apk" >> "$GITHUB_OUTPUT"
+          echo "stable=coastal-forager.apk" >> "$GITHUB_OUTPUT"
 
       - name: Build the release APK
         working-directory: apps/mobile/android
@@ -85,17 +89,19 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           APK: ${{ steps.version.outputs.apk }}
+          STABLE: ${{ steps.version.outputs.stable }}
           VERSION: ${{ steps.version.outputs.version }}
         run: |
-          notes="Version $VERSION, built from ${GITHUB_SHA::7}. Download $APK on your Android phone and open it to install."
+          cp "$APK" "$STABLE"
+          notes="Version $VERSION, built from ${GITHUB_SHA::7}. Download $STABLE (or $APK, the same build) on your Android phone and open it to install."
           git tag -f android-latest && git push -f origin android-latest
           if gh release view android-latest >/dev/null 2>&1; then
             gh release edit android-latest --notes "$notes" --prerelease
-            # Keep only the newest APK on the release.
+            # Upload first, so the fixed-name link never 404s mid-publish, then keep only the newest build.
+            gh release upload android-latest "$APK" "$STABLE" --clobber
             for old in $(gh release view android-latest --json assets -q '.assets[].name' | grep '\.apk$'); do
-              [ "$old" = "$APK" ] || gh release delete-asset android-latest "$old" --yes
+              [ "$old" = "$APK" ] || [ "$old" = "$STABLE" ] || gh release delete-asset android-latest "$old" --yes
             done
-            gh release upload android-latest "$APK" --clobber
           else
-            gh release create android-latest "$APK" --title "Android APK (latest)" --notes "$notes" --prerelease
+            gh release create android-latest "$APK" "$STABLE" --title "Android APK (latest)" --notes "$notes" --prerelease
           fi
