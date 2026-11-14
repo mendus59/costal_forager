@@ -4,7 +4,9 @@
  * low (more detail as it widens: compact times, then High and Low, then the
  * beach, species and heights), and once it is 2 rows tall a tide chart fills
  * the rest: a smooth curve with a dot on each high and low and a dashed line
- * at now. The day's rating is a small colored dot in the top-right corner.
+ * at now, labeled with the water height now ("+4.2 ft ↑"). The day's rating
+ * is a small colored dot in the top-right corner. The height label sits on
+ * the chart, so it adds nothing to the layout's size.
  *
  * "Now" comes from the time the widget renders (`nowMs` in the environment),
  * not from when the app last updated it: the chart image has no now line, so
@@ -50,6 +52,24 @@ const BeachTide = (p: BeachTideProps, env: unknown) => {
   const lowShort = !live ? p.lowShort : nextLow ? (now >= nextLow.dayStart ? nextLow.short : nextLow.dayShort) : '--';
   const highFt = !live ? p.highFt : nextHigh ? nextHigh.ft : '';
   const lowFt = !live ? p.lowFt : nextLow ? nextLow.ft : '';
+
+  // The water height now: a half cosine between the turns either side of now
+  // (the same curve as tideHeightAt in core), else the published text.
+  let nowFt = p.nowFt ?? '';
+  if (live) {
+    nowFt = '';
+    let i = 0;
+    while (i < upcoming.length && upcoming[i].t <= now) i++;
+    if (i > 0 && i < upcoming.length) {
+      const a = upcoming[i - 1];
+      const b = upcoming[i];
+      if (typeof a.h === 'number' && typeof b.h === 'number') {
+        const f = (now - a.t) / (b.t - a.t);
+        const ft = a.h + ((b.h - a.h) * (1 - Math.cos(Math.PI * f))) / 2;
+        nowFt = `${ft > 0 ? '+' : ''}${ft.toFixed(1)} ft ${b.high ? '↑' : '↓'}`;
+      }
+    }
+  }
 
   // Same math as widgetGeometry() in ./types (INLINE_TEXT_W is 148).
   const cols = w >= 180 ? 3 : w >= 110 ? 2 : 1;
@@ -118,6 +138,18 @@ const BeachTide = (p: BeachTideProps, env: unknown) => {
         ))}
       </Column>
     ) : null;
+  // The height now, in a small tag at the top of the chart just right of the now line.
+  const labelX = Math.round(Math.max(0, lineX) + 4);
+  const nowLabel =
+    dashes > 0 && nowFt ? (
+      <Column modifiers={[padding(labelX, Math.max(0, Math.round((chartH - imgH) / 2)), 0, 0)]}>
+        <Box modifiers={[background(p.bg), cornerRadius(4), padding(3, 0, 3, 0)]}>
+          <Text color={p.fg} maxLines={1} style={{ fontSize: 10, fontWeight: 'bold' }}>
+            {nowFt}
+          </Text>
+        </Box>
+      </Column>
+    ) : null;
   const chartImage =
     hasTides && chart && chartH > 0 ? (
       <Box modifiers={[size(chartW, chartH)]}>
@@ -128,6 +160,7 @@ const BeachTide = (p: BeachTideProps, env: unknown) => {
           modifiers={[size(chartW, chartH)]}
         />
         {nowLine}
+        {nowLabel}
       </Box>
     ) : null;
 

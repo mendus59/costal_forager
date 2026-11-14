@@ -18,6 +18,7 @@ import { Chip, StatusBadge } from '@/components/Badges';
 import { DayScoreLine } from '@/components/DayScoreLine';
 import { ExternalLink } from '@/components/ExternalLink';
 import { FavoriteButton } from '@/components/FavoriteButton';
+import { HourlyTides } from '@/components/HourlyTides';
 import { Text, View, useThemeColor } from '@/components/Themed';
 import { toContext } from '@/lib/data';
 import { fmtDay, relativeDay } from '@/lib/format';
@@ -33,6 +34,7 @@ export default function BeachScreen() {
   const { prefs, favoriteSpecies, widget, setWidget } = useUser();
   const tint = useThemeColor('tint');
   const today = localDateKey(new Date());
+  const now = useMemo(() => new Date(), [tides.data]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const species = useMemo(() => (beach ? speciesForBeach(beach) : []), [beach]);
   const [selected, setSelected] = useState<SpeciesId | null>(null);
@@ -126,6 +128,21 @@ export default function BeachScreen() {
           </View>
         ))}
       </View>
+
+      {tides.data && tides.data.tides.length > 0 && (
+        <View card>
+          <Text style={styles.h2}>Hour by hour</Text>
+          <Text muted style={styles.small}>
+            Water height at NOAA {tides.data.station.name} (ft above MLLW).
+          </Text>
+          <HourlyTides
+            tides={tides.data.tides}
+            now={now}
+            goodFt={selected ? getSpecies(selected).marginalTideFt : null}
+            goodLabel={selected ? `Low enough for ${getSpecies(selected).plural.toLowerCase()}` : undefined}
+          />
+        </View>
+      )}
 
       <View card>
         <Text style={styles.h2}>Next 14 days</Text>

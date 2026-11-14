@@ -1,6 +1,7 @@
 /**
  * A NOAA tide station's week, ported from TideWidget's station sheet: the
- * water height now, a 24-hour or 7-day tide curve, every high and low for the
+ * water height now, a 24-hour or 7-day tide curve, the height hour by hour,
+ * every high and low for the
  * next 7 days grouped by day, and a button to put the station on the
  * home-screen widget. Opened from the tide map, the Areas list, a beach page
  * or the widget (coastalforager://station/<id>).
@@ -20,6 +21,7 @@ import { useMemo, useState } from 'react';
 import { ActivityIndicator, Image, Platform, Pressable, ScrollView, StyleSheet } from 'react-native';
 
 import { Chip } from '@/components/Badges';
+import { HourlyTides } from '@/components/HourlyTides';
 import { Text, View, useThemeColor } from '@/components/Themed';
 import { fmtFt, fmtTime, relativeDay } from '@/lib/format';
 import { useLoad } from '@/lib/hooks';
@@ -123,6 +125,13 @@ export default function StationScreen() {
           </Pressable>
         )}
       </View>
+
+      {tides && tides.length > 0 && (
+        <View card>
+          <Text style={styles.h2}>Hour by hour</Text>
+          <HourlyTides tides={tides} now={now} />
+        </View>
+      )}
 
       {area && area.stations.length > 1 && (
         <AreaCard area={area} here={id} now={now} />

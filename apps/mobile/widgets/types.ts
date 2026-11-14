@@ -27,6 +27,8 @@ export interface WidgetTide {
   short: string;
   dayShort: string;
   ft: string;
+  /** Height in feet (MLLW), for working out the water level between turns. */
+  h: number;
 }
 
 /** A high or low on the iOS chart: x in curve steps, y from 0 to 1. */
@@ -69,7 +71,12 @@ export interface BeachTideProps {
    */
   chartFrom: number;
   chartTo: number;
-  /** Android: the highs and lows over the next 3 days. */
+  /**
+   * The water height now and which way it is going: "+4.2 ft ↑". Empty
+   * without tides. Android works it out again from `upcoming` when it renders.
+   */
+  nowFt: string;
+  /** Android: the last high or low before now, then the highs and lows over the next 3 days. */
   upcoming: WidgetTide[];
   /** iOS: water height from 0 to 1 every half hour over the same window. Empty without tides. */
   curve: number[];
@@ -111,6 +118,7 @@ export const EMPTY_BEACH_TIDE: BeachTideProps = {
   lowFt: '',
   highShort: '',
   lowShort: '',
+  nowFt: '',
   charts: [],
   chartFrom: 0,
   chartTo: 0,
