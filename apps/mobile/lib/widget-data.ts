@@ -10,6 +10,7 @@ import {
   nextHighAndLow,
   scoreDay,
   tideHeightAt,
+  tideRising,
   zonedTime,
   type ScoringPrefs,
   type SpeciesId,
@@ -98,7 +99,7 @@ export function buildBeachTideEntries(
     const end = t + sp.hoursAfterLow * 3600000;
     if (e.type === 'L' && end > now.getTime()) times.add(end + 60000);
   }
-  for (let h = 1; h <= 24; h++) times.add(Math.floor(now.getTime() / 3600000) * 3600000 + h * 3600000);
+  addHalfHours(times, now);
   const today = localDateKey(now);
   times.add(zonedTime(addDays(today, 1), 0).getTime());
 
@@ -126,7 +127,7 @@ export function buildStationEntries(
     const t = e.time.getTime();
     if (t > now.getTime() && t <= until) times.add(t + 60000);
   }
-  for (let h = 1; h <= 24; h++) times.add(Math.floor(now.getTime() / 3600000) * 3600000 + h * 3600000);
+  addHalfHours(times, now);
   return [...times]
     .filter((t) => t <= until)
     .sort((a, b) => a - b)
@@ -144,11 +145,26 @@ export function buildStationEntries(
           lowFt: low ? fmtFt(low.heightFt) : '',
           highShort: high ? shortTime(high, today) : '--',
           lowShort: low ? shortTime(low, today) : '--',
+          nowFt: nowHeightText(tides, at),
           ...tideCurveData(tides, at),
           ...androidTideProps(tides, at),
         },
       };
     });
+}
+
+/** Each half hour over the next day, so the chart and the height now move along on iOS. */
+function addHalfHours(times: Set<number>, now: Date) {
+  const step = 1800000;
+  const start = Math.floor(now.getTime() / step) * step;
+  for (let i = 1; i <= 48; i++) times.add(start + i * step);
+}
+
+/** "+4.2 ft ↑" while rising, "↓" while falling; empty outside the predictions. */
+export function nowHeightText(tides: TideEvent[], at: Date): string {
+  const ft = tideHeightAt(tides, at);
+  if (ft === null) return '';
+  return `${fmtFt(ft)} ${tideRising(tides, at) ? '↑' : '↓'}`;
 }
 
 const weekday = new Intl.DateTimeFormat('en-US', { timeZone: 'UTC', weekday: 'short' });
@@ -167,15 +183,19 @@ function shortTime(e: TideEvent, today: string): string {
 }
 
 /**
- * The highs and lows from `at` through the next 3 days, with their times
- * written both ways, so the Android layout can pick the next high and low
- * when it renders (Android redraws the widget every 30 minutes without the
- * app running).
+ * The last high or low before `at`, then the highs and lows through the next
+ * 3 days, with their times written both ways and their heights, so the
+ * Android layout can pick the next high and low and work out the water
+ * height when it renders (Android redraws the widget every 30 minutes
+ * without the app running).
  */
 export function upcomingTides(tides: TideEvent[], at: Date): WidgetTide[] {
   const end = at.getTime() + 3 * 86400000;
+  const first = tides.findIndex((e) => e.time.getTime() > at.getTime());
+  if (first < 0) return [];
   return tides
-    .filter((e) => e.time.getTime() > at.getTime() && e.time.getTime() <= end)
+    .slice(Math.max(0, first - 1))
+    .filter((e) => e.time.getTime() <= end)
     .map((e) => {
       const day = localDateKey(e.time);
       const wd = weekday.format(new Date(`${day}T12:00:00Z`));
@@ -190,6 +210,7 @@ export function upcomingTides(tides: TideEvent[], at: Date): WidgetTide[] {
         short,
         dayShort: `${wd.slice(0, 2)} ${short}`,
         ft: fmtFt(e.heightFt),
+        h: e.heightFt,
       };
     });
 }
@@ -269,6 +290,7 @@ function beachTideAt(
     lowFt: low ? fmtFt(low.heightFt) : '',
     highShort: high ? shortTime(high, today) : '--',
     lowShort: low ? shortTime(low, today) : '--',
+    nowFt: nowHeightText(tides, at),
     charts: [],
     ...tideCurveData(tides, at),
     ...androidTideProps(tides, at),

@@ -6,6 +6,21 @@ import { WIDGET_COLORS, type BeachTideProps } from '@/widgets/types';
 export const PREVIEW_CHART = { w: 292, h: 100 };
 export const PREVIEW_INLINE_CHART = { w: 140, h: 58 };
 
+/**
+ * The water height now, in a small tag at the top of the chart just right of
+ * the now line (3 hours into the 24-hour chart), as the Android widget shows it.
+ */
+function NowTag({ p }: { p: BeachTideProps }) {
+  if (!p.nowFt) return null;
+  return (
+    <View style={[styles.nowTag, { backgroundColor: p.bg }]} accessible accessibilityLabel={`Tide now ${p.nowFt}`}>
+      <Text style={[styles.nowText, { color: p.fg }]} numberOfLines={1}>
+        {p.nowFt}
+      </Text>
+    </View>
+  );
+}
+
 /** The 3x1 widget: beach and times on the left, a small chart on the right. */
 export function BeachTideInlinePreview({ p, chartUri }: { p: BeachTideProps; chartUri?: string | null }) {
   const tides = p.highTime || p.lowTime;
@@ -13,7 +28,7 @@ export function BeachTideInlinePreview({ p, chartUri }: { p: BeachTideProps; cha
     <View
       style={[styles.inlineCard, { backgroundColor: p.bg }]}
       accessible
-      accessibilityLabel={`3 by 1 widget preview: ${[p.beach, p.status, tides ? `next high ${p.highTime}, next low ${p.lowTime}` : p.note]
+      accessibilityLabel={`3 by 1 widget preview: ${[p.beach, p.status, p.nowFt && `now ${p.nowFt}`, tides ? `next high ${p.highTime}, next low ${p.lowTime}` : p.note]
         .filter(Boolean)
         .join(', ')}`}>
       <View style={styles.inlineText}>
@@ -43,12 +58,15 @@ export function BeachTideInlinePreview({ p, chartUri }: { p: BeachTideProps; cha
         )}
       </View>
       {chartUri && tides ? (
-        <Image
-          source={{ uri: chartUri }}
-          resizeMode="contain"
-          style={{ width: PREVIEW_INLINE_CHART.w, height: PREVIEW_INLINE_CHART.h }}
-          accessibilityLabel="Tide chart, next 24 hours"
-        />
+        <View>
+          <Image
+            source={{ uri: chartUri }}
+            resizeMode="contain"
+            style={{ width: PREVIEW_INLINE_CHART.w, height: PREVIEW_INLINE_CHART.h }}
+            accessibilityLabel="Tide chart, next 24 hours"
+          />
+          <NowTag p={p} />
+        </View>
       ) : null}
     </View>
   );
@@ -102,12 +120,15 @@ export function BeachTidePreview({ p, chartUri }: { p: BeachTideProps; chartUri?
         </View>
       ) : null}
       {chartUri && p.curve.length > 0 ? (
-        <Image
-          source={{ uri: chartUri }}
-          resizeMode="contain"
-          style={styles.chart}
-          accessibilityLabel="Tide chart, next 24 hours"
-        />
+        <View>
+          <Image
+            source={{ uri: chartUri }}
+            resizeMode="contain"
+            style={styles.chart}
+            accessibilityLabel="Tide chart, next 24 hours"
+          />
+          <NowTag p={p} />
+        </View>
       ) : null}
     </View>
   );
@@ -149,4 +170,6 @@ const styles = StyleSheet.create({
   label: { fontSize: 10 },
   time: { fontSize: 15, fontWeight: 'bold' },
   chart: { width: '100%', height: PREVIEW_CHART.h, marginTop: 2 },
+  nowTag: { position: 'absolute', top: 0, left: '12.5%', marginLeft: 4, borderRadius: 4, paddingHorizontal: 3 },
+  nowText: { fontSize: 10, fontWeight: 'bold' },
 });

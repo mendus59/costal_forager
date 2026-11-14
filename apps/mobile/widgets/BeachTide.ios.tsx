@@ -1,6 +1,6 @@
 /**
  * iOS home-screen widget (WidgetKit via expo-widgets, systemMedium): the
- * beach and species, the next high and low tide, and a 24-hour tide chart
+ * beach and species, the water height now, the next high and low tide, and a 24-hour tide chart
  * drawn like TideWidget's (Swift Charts: a filled curve with a dot on each
  * high and low, and a gray dot along the bottom at now), with the day's
  * rating as a small colored dot in the top-right corner. The layout function is serialized and run by the widget
@@ -35,6 +35,12 @@ const BeachTide = (p: BeachTideProps) => {
             <Text modifiers={[font({ size: 10 }), foregroundStyle(p.muted), lineLimit(1)]}>{`▼ Low ${p.lowFt}`}</Text>
             <Text modifiers={[font({ size: 16, weight: 'bold' }), foregroundStyle(p.fg), lineLimit(1)]}>{p.lowTime}</Text>
           </VStack>
+          {p.nowFt ? (
+            <VStack alignment="leading" spacing={0}>
+              <Text modifiers={[font({ size: 10 }), foregroundStyle(p.muted), lineLimit(1)]}>Now</Text>
+              <Text modifiers={[font({ size: 16, weight: 'bold' }), foregroundStyle(p.fg), lineLimit(1)]}>{p.nowFt}</Text>
+            </VStack>
+          ) : null}
         </HStack>
       ) : null}
       {p.curve.length > 0 ? (
