@@ -5,8 +5,14 @@
  * beach, species and heights), and once it is 2 rows tall a tide chart fills
  * the rest: a smooth curve with a dot on each high and low and a dashed line
  * at now, labeled with the water height now ("+4.2 ft ↑"). The day's rating
- * is a small colored dot in the top-right corner. The height label sits on
- * the chart, so it adds nothing to the layout's size.
+ * is a small colored dot. The height label sits on the chart, so it adds
+ * nothing to the layout's size.
+ *
+ * Tapping the top-right corner (↻, from 2 columns wide) refreshes the widget:
+ * it redraws at once, so the now line moves to the current time, and the app
+ * fetches fresh tides in the background and publishes a new chart (the
+ * "refresh" target, handled by scripts/patch-expo-widgets.cjs). Tapping
+ * anywhere else opens the app.
  *
  * "Now" comes from the time the widget renders (`nowMs` in the environment),
  * not from when the app last updated it: the chart image has no now line, so
@@ -22,7 +28,7 @@
  * shape fits best. expo-widgets ignores `weight` on Android, so sizes are
  * computed here; the math matches widgetGeometry in ./types.
  */
-import { Box, Column, Image, Row, Text } from '@expo/ui/jetpack-compose';
+import { Box, Button, Column, Image, Row, Text } from '@expo/ui/jetpack-compose';
 import { background, cornerRadius, fillMaxSize, padding, size, width } from '@expo/ui/jetpack-compose/modifiers';
 import { createWidget } from 'expo-widgets';
 
@@ -116,11 +122,34 @@ const BeachTide = (p: BeachTideProps, env: unknown) => {
     </Row>
   );
 
+  // The refresh button in the top-right corner. Its target is what the patch
+  // listens for; the layout has no press handler of its own.
+  const refreshing = !!p.refreshingAt && now > 0 && now - p.refreshingAt < 60000;
+  const refresh =
+    cols > 1 ? (
+      <Button {...({ target: 'refresh' } as object)} modifiers={[size(28, 28)]}>
+        <Box contentAlignment="center" modifiers={[size(28, 28)]}>
+          <Box contentAlignment="center" modifiers={[size(20, 20), background(p.bg), cornerRadius(10)]}>
+            <Text color={refreshing ? p.muted : p.fg} maxLines={1} style={{ fontSize: 13, fontWeight: 'bold' }}>
+              {refreshing ? '…' : '↻'}
+            </Text>
+          </Box>
+        </Box>
+      </Button>
+    ) : null;
   const dot = p.status ? (
-    <Box modifiers={[padding(0, pad, pad, 0)]}>
+    <Box modifiers={[padding(0, refresh ? 0 : pad, refresh ? 2 : pad, 0)]}>
       <Box modifiers={[size(10, 10), background(p.dot), cornerRadius(5)]} />
     </Box>
   ) : null;
+  const corner = refresh ? (
+    <Row verticalAlignment="center" modifiers={[padding(0, Math.max(0, pad - 6), Math.max(0, pad - 4), 0)]}>
+      {dot}
+      {refresh}
+    </Row>
+  ) : (
+    dot
+  );
   // Where the image lands when scaled to fit the chart box, and the dashed line at now over it.
   const imgW = chartA > ratio ? chartW : chartH * chartA;
   const imgH = chartA > ratio ? chartW / chartA : chartH;
@@ -203,6 +232,7 @@ const BeachTide = (p: BeachTideProps, env: unknown) => {
           </Column>
           {chartImage}
         </Row>
+        {refresh ? <Box modifiers={[padding(0, Math.max(0, pad - 6), Math.max(0, pad - 4), 0)]}>{refresh}</Box> : null}
       </Box>
     );
   }
@@ -261,7 +291,7 @@ const BeachTide = (p: BeachTideProps, env: unknown) => {
         ) : null}
         {chartImage}
       </Column>
-      {dot}
+      {corner}
     </Box>
   );
 };

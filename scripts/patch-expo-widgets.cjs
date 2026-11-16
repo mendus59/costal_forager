@@ -16,6 +16,12 @@
  *    itself, and the widget provider asks Android to redraw it every 30
  *    minutes (updatePeriodMillis, the shortest Android allows). A redraw only
  *    re-runs the layout with the saved props: no network and no app start.
+ * 4. Refresh on tap. A widget button with target "refresh" (the top-right
+ *    corner) redraws the widget at once, marked with `refreshingAt`, so the
+ *    now line jumps to the current time, and runs the app's background task
+ *    (the WIDGET_TASK in lib/widget-sync.tsx) right away as one-off work, so
+ *    it fetches fresh tides and publishes a new chart. The one-off run does
+ *    not reschedule the periodic background worker.
  *
  * Runs after `npm install` / `npm ci` (postinstall). It only edits the
  * installed copy in node_modules, is idempotent, and fails loudly if
@@ -35,6 +41,12 @@ const SIZE_MARK = '// coastal-forager: widget size';
 const NOW_MARK = '// coastal-forager: render time';
 const plugin = path.join(__dirname, '..', 'node_modules/expo-widgets/plugin/build/android/withAndroidWidgetFiles.js');
 const PERIOD = 'android:updatePeriodMillis="1800000"';
+const interaction = path.join(path.dirname(file), 'WidgetInteractionAction.kt');
+const REFRESH_MARK = '// coastal-forager: refresh on tap';
+const bgDir = path.join(__dirname, '..', 'node_modules/expo-background-task/android/src/main/java/expo/modules/backgroundtask');
+const bgWork = path.join(bgDir, 'BackgroundTaskWork.kt');
+const bgScheduler = path.join(bgDir, 'BackgroundTaskScheduler.kt');
+const ONE_OFF_MARK = '// coastal-forager: one-off run';
 
 if (!fs.existsSync(file)) {
   console.log('patch-expo-widgets: expo-widgets not installed, skipping');
@@ -42,14 +54,33 @@ if (!fs.existsSync(file)) {
 }
 let src = fs.readFileSync(file, 'utf8');
 let pluginSrc = fs.readFileSync(plugin, 'utf8');
-if (src.includes(MARK) && src.includes(SIZE_MARK) && src.includes(NOW_MARK) && pluginSrc.includes(PERIOD)) process.exit(0);
+let interactionSrc = fs.readFileSync(interaction, 'utf8');
+let bgWorkSrc = fs.existsSync(bgWork) ? fs.readFileSync(bgWork, 'utf8') : null;
+let bgSchedulerSrc = fs.existsSync(bgScheduler) ? fs.readFileSync(bgScheduler, 'utf8') : null;
+if (bgWorkSrc === null || bgSchedulerSrc === null) {
+  console.error('patch-expo-widgets: expo-background-task is missing; the widget refresh needs it. Update scripts/patch-expo-widgets.cjs.');
+  process.exit(1);
+}
+if (
+  src.includes(MARK) &&
+  src.includes(SIZE_MARK) &&
+  src.includes(NOW_MARK) &&
+  pluginSrc.includes(PERIOD) &&
+  interactionSrc.includes(REFRESH_MARK) &&
+  bgWorkSrc.includes(ONE_OFF_MARK) &&
+  bgSchedulerSrc.includes(ONE_OFF_MARK)
+)
+  process.exit(0);
 
-const replace = (from, to) => {
-  if (!src.includes(from)) {
-    console.error(`patch-expo-widgets: could not find:\n${from}\nin ${file}. Update scripts/patch-expo-widgets.cjs.`);
+const swap = (text, where, from, to) => {
+  if (!text.includes(from)) {
+    console.error(`patch-expo-widgets: could not find:\n${from}\nin ${where}. Update scripts/patch-expo-widgets.cjs.`);
     process.exit(1);
   }
-  src = src.replace(from, to);
+  return text.replace(from, to);
+};
+const replace = (from, to) => {
+  src = swap(src, file, from, to);
 };
 
 if (!src.includes(MARK)) {
@@ -109,5 +140,76 @@ if (!pluginSrc.includes(PERIOD)) {
   pluginSrc = pluginSrc.replace(from, PERIOD);
   fs.writeFileSync(plugin, pluginSrc);
 }
+if (!interactionSrc.includes(REFRESH_MARK)) {
+  interactionSrc = swap(
+    interactionSrc,
+    interaction,
+    '  fun handle(context: Context, source: String, target: String) {\n',
+    `  fun handle(context: Context, source: String, target: String) {
+    ${REFRESH_MARK}
+    if (target == "refresh") {
+      val marked = WidgetsLayoutRegistry.props(context, source).orEmpty() +
+        ("refreshingAt" to System.currentTimeMillis().toDouble())
+      WidgetsStorage.set(context, "__expo_widgets_\${source}_props", marked)
+      WidgetsUpdater.reload(context, source)
+      runCatching {
+        val worker = Class.forName("expo.modules.backgroundtask.BackgroundTaskWork")
+          .asSubclass(androidx.work.ListenableWorker::class.java)
+        val request = androidx.work.OneTimeWorkRequest.Builder(worker)
+          .setInputData(
+            androidx.work.Data.Builder()
+              .putString("appScopeKey", context.packageName)
+              .putBoolean("coastalForagerOneOff", true)
+              .build()
+          )
+          .apply {
+            if (android.os.Build.VERSION.SDK_INT >= 31) {
+              setExpedited(androidx.work.OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST)
+            }
+          }
+          .build()
+        androidx.work.WorkManager.getInstance(context)
+          .enqueueUniqueWork("coastal-forager-widget-refresh", androidx.work.ExistingWorkPolicy.REPLACE, request)
+      }.onFailure { android.util.Log.e("ExpoWidgets", "Widget refresh failed to start", it) }
+      return
+    }
+`,
+  );
+  fs.writeFileSync(interaction, interactionSrc);
+}
+if (!bgWorkSrc.includes(ONE_OFF_MARK)) {
+  bgWorkSrc = swap(
+    bgWorkSrc,
+    bgWork,
+    '      BackgroundTaskScheduler.runTasks(applicationContext, appScopeKey)\n',
+    `      ${ONE_OFF_MARK}
+      BackgroundTaskScheduler.runTasks(applicationContext, appScopeKey, !inputData.getBoolean("coastalForagerOneOff", false))
+`,
+  );
+  fs.writeFileSync(bgWork, bgWorkSrc);
+}
+if (!bgSchedulerSrc.includes(ONE_OFF_MARK)) {
+  bgSchedulerSrc = swap(
+    bgSchedulerSrc,
+    bgScheduler,
+    '  suspend fun runTasks(context: Context, appScopeKey: String) {\n',
+    `  ${ONE_OFF_MARK}: reschedule = false runs the tasks once without touching the periodic worker.
+  suspend fun runTasks(context: Context, appScopeKey: String, reschedule: Boolean = true) {
+`,
+  );
+  bgSchedulerSrc = swap(
+    bgSchedulerSrc,
+    bgScheduler,
+    '      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {\n        scheduleWorker(context, appScopeKey, false, 60L.coerceAtMost(intervalMinutes))',
+    '      if (reschedule && Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {\n        scheduleWorker(context, appScopeKey, false, 60L.coerceAtMost(intervalMinutes))',
+  );
+  bgSchedulerSrc = swap(
+    bgSchedulerSrc,
+    bgScheduler,
+    '    // Schedule next task\n    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {',
+    '    // Schedule next task\n    if (reschedule && Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {',
+  );
+  fs.writeFileSync(bgScheduler, bgSchedulerSrc);
+}
 fs.writeFileSync(file, src);
-console.log('patch-expo-widgets: Android widgets now open the app on tap, know their size and time, and redraw every 30 minutes');
+console.log('patch-expo-widgets: Android widgets now open the app on tap, know their size and time, redraw every 30 minutes and refresh from the top-right corner');
