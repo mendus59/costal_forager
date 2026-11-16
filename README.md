@@ -9,7 +9,7 @@ Where and when to go shellfishing in Washington State.
 - Shows which public beaches are safe and in season for each species, from WA DOH, WDFW and NOAA data synced on a schedule.
 - Finds the next day the tide is low enough during the hours you want to be out, and rates each day.
 - Shows the water height hour by hour for any beach or NOAA tide station.
-- Push alerts for good days at your favorite beaches, plus a home-screen widget with the tide height now.
+- Push alerts for good days at your favorite beaches, plus a home-screen widget with the tide height now and tap-to-refresh.
 <!-- site-summary:end -->
 
 Where and when to go shellfishing in Washington State. The app shows which
@@ -135,7 +135,10 @@ eas build --profile development --platform android   # or ios
   Android gets a snapshot, refreshed by a background task every few hours and
   whenever the app opens. Between those, Android redraws the widget every 30
   minutes, and the layout draws the now line and picks the next high and low
-  from the time it renders, so they stay current.
+  from the time it renders, so they stay current. On Android (2 columns and
+  wider), tapping the ↻ in the top-right corner refreshes it on the spot: the
+  now line jumps to the current time, and the app's background task runs at
+  once to fetch fresh tides and redraw the chart.
 
 #### Android APK without an Expo account
 

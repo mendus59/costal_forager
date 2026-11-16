@@ -2,6 +2,8 @@
  * Keeps the home-screen widget current. The app refreshes it whenever
  * favorites, settings or data change, and a background task refreshes it
  * about every few hours from cached data (plus a tide refresh when online).
+ * On Android, tapping the widget's refresh button (top-right) runs the same
+ * background task at once (see scripts/patch-expo-widgets.cjs).
  */
 import { getSpecies } from '@costal-forager/core';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -72,7 +74,11 @@ async function publishBeachTideOrThrow(input: SavedState, beaches: Beaches) {
 TaskManager.defineTask(WIDGET_TASK, async () => {
   try {
     const raw = await AsyncStorage.getItem('user:v1');
-    if (!raw) return BackgroundTask.BackgroundTaskResult.Success;
+    if (!raw) {
+      // Nothing set up yet; still publish so a refresh tap doesn't stay pending.
+      BeachTide.updateSnapshot(EMPTY_BEACH_TIDE);
+      return BackgroundTask.BackgroundTaskResult.Success;
+    }
     const s = JSON.parse(raw) as SavedState;
     await publish(s, await loadCachedBeaches());
     return BackgroundTask.BackgroundTaskResult.Success;

@@ -87,6 +87,12 @@ export interface BeachTideProps {
   note: string;
   /** Deep link the widget opens. */
   url: string;
+  /**
+   * Android: when the refresh button (top-right) was last tapped, in ms. Set
+   * by the widget itself, and gone once the app publishes fresh data, so the
+   * button shows "…" until then (for at most a minute).
+   */
+  refreshingAt?: number;
 }
 
 /** Colors for the widget's sea-blue card and its chart. */
