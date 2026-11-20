@@ -83,6 +83,7 @@ jobs:
         with:
           name: coastal-forager-${{ steps.version.outputs.version }}
           path: ${{ steps.version.outputs.apk }}
+          retention-days: 1
 
       - name: Publish to the android-latest pre-release
         if: github.event_name != 'pull_request'
