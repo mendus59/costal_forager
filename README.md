@@ -9,6 +9,7 @@ Where and when to go shellfishing in Washington State.
 - Shows which public beaches are safe and in season for each species, from WA DOH, WDFW and NOAA data synced on a schedule.
 - Finds the next day the tide is low enough during the hours you want to be out, and rates each day.
 - Shows the water height hour by hour for any beach or NOAA tide station.
+- A tide map of every NOAA station in the US, with a 24-hour slider, place search and a 7-day view per station.
 - Push alerts for good days at your favorite beaches, plus a home-screen widget with the tide height now and tap-to-refresh.
 <!-- site-summary:end -->
 
