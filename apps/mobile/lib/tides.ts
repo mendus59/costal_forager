@@ -62,3 +62,29 @@ export function loadForecast(stationId: string): Promise<TideEvent[]> {
   memory.set(stationId, p);
   return p;
 }
+
+/** How far ahead the multi-week high/low table on a station page can look. */
+export const OUTLOOK_DAYS = 56;
+
+const outlookKey = (id: string) => `outlook:${id}:v1`;
+const outlookMemory = new Map<string, Promise<TideEvent[]>>();
+
+/** Highs and lows from today through OUTLOOK_DAYS ahead, cached for a day. */
+export function loadOutlook(stationId: string): Promise<TideEvent[]> {
+  const hit = outlookMemory.get(stationId);
+  if (hit) return hit;
+  const p = cached<Stored[]>(outlookKey(stationId), 24 * HOUR, async () => {
+    const today = localDateKey(new Date());
+    const events = parsePredictions(await getJson(predictionsUrl(stationId, today, addDays(today, OUTLOOK_DAYS))));
+    return events.map((e): Stored => [e.time.toISOString(), e.heightFt, e.type]);
+  })
+    .then(revive)
+    .catch(async (e) => {
+      outlookMemory.delete(stationId);
+      const stale = await cachedStale<Stored[]>(outlookKey(stationId));
+      if (stale) return revive(stale);
+      throw e;
+    });
+  outlookMemory.set(stationId, p);
+  return p;
+}

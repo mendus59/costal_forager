@@ -1,8 +1,8 @@
 /**
  * A NOAA tide station's week, ported from TideWidget's station sheet: the
  * water height now, a 24-hour or 7-day tide curve, the height hour by hour,
- * every high and low for the
- * next 7 days grouped by day, and a button to put the station on the
+ * every high and low for up to
+ * 8 weeks ahead, and a button to put the station on the
  * home-screen widget. Opened from the tide map, the Areas list, a beach page
  * or the widget (coastalforager://station/<id>).
  */
@@ -22,11 +22,12 @@ import { ActivityIndicator, Image, Platform, Pressable, ScrollView, StyleSheet }
 
 import { Chip } from '@/components/Badges';
 import { HourlyTides } from '@/components/HourlyTides';
+import { TideTable } from '@/components/TideTable';
 import { Text, View, useThemeColor } from '@/components/Themed';
-import { fmtFt, fmtTime, relativeDay } from '@/lib/format';
+import { fmtFt, fmtTime } from '@/lib/format';
 import { useLoad } from '@/lib/hooks';
 import { useUser } from '@/lib/store';
-import { loadForecast, loadUsStations } from '@/lib/tides';
+import { loadForecast, loadOutlook, loadUsStations, OUTLOOK_DAYS } from '@/lib/tides';
 import { WIDGET_COLORS } from '@/widgets/types';
 
 const CHART_H = 140;
@@ -35,6 +36,7 @@ const weekday = new Intl.DateTimeFormat('en-US', { timeZone: 'UTC', weekday: 'sh
 export default function StationScreen() {
   const { id, name: nameParam } = useLocalSearchParams<{ id: string; name?: string }>();
   const forecast = useLoad(() => loadForecast(id), [id]);
+  const outlook = useLoad(() => loadOutlook(id), [id]);
   const stations = useLoad(() => loadUsStations(), []);
   const { widget, setWidget } = useUser();
   const tint = useThemeColor('tint');
@@ -73,8 +75,6 @@ export default function StationScreen() {
     );
   }, [hours, now]);
 
-  const days = useMemo(() => groupByDay(tides ?? [], now), [tides, now]);
-  const today = localDateKey(now);
   const onWidget = !widget.bidn && widget.station?.id === id;
 
   return (
@@ -139,23 +139,13 @@ export default function StationScreen() {
 
       <View card>
         <Text style={styles.h2}>Highs and lows</Text>
-        {days.map(({ key, events }) => (
-          <View key={key} style={styles.day}>
-            <Text style={styles.dayHead}>{relativeDay(key, today)}</Text>
-            {events.map((e) => (
-              <View key={e.time.toISOString()} style={styles.event}>
-                <Text style={[styles.kind, { color: e.type === 'H' ? WIDGET_COLORS.high : WIDGET_COLORS.lowText }]}>
-                  {e.type === 'H' ? '▲ High' : '▼ Low'}
-                </Text>
-                <Text style={styles.when}>{fmtTime(e.time)}</Text>
-                <Text muted>{fmtFt(e.heightFt)}</Text>
-              </View>
-            ))}
-          </View>
-        ))}
-        <Text muted style={styles.small}>
-          Predictions from NOAA CO-OPS (MLLW). Not for navigation.
-        </Text>
+        {outlook.data || tides ? (
+          <TideTable tides={outlook.data ?? tides!} now={now} maxDays={outlook.data ? OUTLOOK_DAYS : 8} />
+        ) : outlook.loading ? (
+          <ActivityIndicator style={{ marginVertical: 8 }} />
+        ) : (
+          <Text muted>{`Couldn't load predictions (${outlook.error})`}</Text>
+        )}
       </View>
       <Link href="/areas" style={[styles.link, { color: tint }]}>
         See all areas near you
@@ -204,20 +194,6 @@ function AreaCard({ area, here, now }: { area: ReturnType<typeof groupAreas>[num
   );
 }
 
-function groupByDay(tides: TideEvent[], now: Date): { key: string; events: TideEvent[] }[] {
-  const end = now.getTime() + 7 * 86400000;
-  const out: { key: string; events: TideEvent[] }[] = [];
-  for (const e of tides) {
-    const t = e.time.getTime();
-    if (t <= now.getTime() || t > end) continue;
-    const key = localDateKey(e.time);
-    const last = out[out.length - 1];
-    if (last && last.key === key) last.events.push(e);
-    else out.push({ key, events: [e] });
-  }
-  return out;
-}
-
 const styles = StyleSheet.create({
   page: { padding: 16, gap: 12, paddingBottom: 40 },
   h1: { fontSize: 22, fontWeight: '700' },
@@ -227,11 +203,6 @@ const styles = StyleSheet.create({
   axis: { flexDirection: 'row', justifyContent: 'space-between', backgroundColor: 'transparent', marginTop: 2 },
   tick: { fontSize: 11 },
   widgetButton: { paddingVertical: 8, marginTop: 4 },
-  day: { backgroundColor: 'transparent', marginTop: 8 },
-  dayHead: { fontWeight: '700', marginBottom: 2 },
-  event: { flexDirection: 'row', gap: 12, paddingVertical: 2, backgroundColor: 'transparent' },
-  kind: { width: 64 },
-  when: { width: 78, fontWeight: '600' },
   small: { fontSize: 12, marginTop: 8 },
   outlook: { backgroundColor: 'transparent', marginVertical: 6, gap: 2 },
   member: { fontSize: 14, paddingVertical: 4 },
