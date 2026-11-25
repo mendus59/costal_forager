@@ -19,6 +19,7 @@ import { DayScoreLine } from '@/components/DayScoreLine';
 import { ExternalLink } from '@/components/ExternalLink';
 import { FavoriteButton } from '@/components/FavoriteButton';
 import { HourlyTides } from '@/components/HourlyTides';
+import { TideTable } from '@/components/TideTable';
 import { Text, View, useThemeColor } from '@/components/Themed';
 import { toContext } from '@/lib/data';
 import { fmtDay, relativeDay } from '@/lib/format';
@@ -136,6 +137,18 @@ export default function BeachScreen() {
             Water height at NOAA {tides.data.station.name} (ft above MLLW).
           </Text>
           <HourlyTides
+            tides={tides.data.tides}
+            now={now}
+            goodFt={selected ? getSpecies(selected).marginalTideFt : null}
+            goodLabel={selected ? `Low enough for ${getSpecies(selected).plural.toLowerCase()}` : undefined}
+          />
+        </View>
+      )}
+
+      {tides.data && tides.data.tides.length > 0 && (
+        <View card>
+          <Text style={styles.h2}>Highs and lows</Text>
+          <TideTable
             tides={tides.data.tides}
             now={now}
             goodFt={selected ? getSpecies(selected).marginalTideFt : null}

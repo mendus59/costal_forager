@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { nextHighAndLow, tideCurve, tideHeightAt, tideRising, type TideEvent } from "../src/index.ts";
+import { nextHighAndLow, tideCurve, tideDays, tideHeightAt, tideRising, type TideEvent } from "../src/index.ts";
 
 const at = (iso: string) => new Date(iso);
 const events: TideEvent[] = [
@@ -36,5 +36,29 @@ describe("tide math (ported from TideWidget)", () => {
       "2026-11-09T01:00:00.000Z",
       "2026-11-09T02:00:00.000Z",
     ]);
+  });
+});
+
+describe("tideDays", () => {
+  const ev = (iso: string, ft: number, type: "H" | "L"): TideEvent => ({ time: at(iso), heightFt: ft, type });
+  // Pacific Standard Time is UTC-8 in November.
+  const list = [
+    ev("2026-11-24T20:00:00Z", 10, "H"), // Nov 24 12 PM, before `from`
+    ev("2026-11-25T02:00:00Z", -1, "L"), // Nov 24 6 PM
+    ev("2026-11-25T09:00:00Z", 11, "H"), // Nov 25 1 AM
+    ev("2026-11-25T15:00:00Z", 2, "L"), // Nov 25 7 AM
+    ev("2026-11-26T15:00:00Z", 2, "L"), // Nov 26 7 AM, past 2 days
+  ];
+
+  it("groups future highs and lows by local day and stops after the last day", () => {
+    const days = tideDays(list, at("2026-11-24T22:00:00Z"), 2);
+    expect(days.map((d) => d.key)).toEqual(["2026-11-24", "2026-11-25"]);
+    expect(days[0].events.map((e) => e.heightFt)).toEqual([-1]);
+    expect(days[1].events.map((e) => e.heightFt)).toEqual([11, 2]);
+  });
+
+  it("sorts unsorted input", () => {
+    const days = tideDays([...list].reverse(), at("2026-11-24T22:00:00Z"), 3);
+    expect(days.flatMap((d) => d.events.map((e) => e.heightFt))).toEqual([-1, 11, 2, 2]);
   });
 });

@@ -7,6 +7,7 @@
  * between is a half cosine from one to the next.
  */
 import type { TideEvent } from "./noaa.ts";
+import { addDays, localDateKey, WA_TZ } from "./time.ts";
 
 /** The next high and next low strictly after `at`. */
 export function nextHighAndLow(events: readonly TideEvent[], at: Date): { high: TideEvent | null; low: TideEvent | null } {
@@ -94,4 +95,30 @@ export function tidePhaseRgb(phase: number): [number, number, number] {
 /** "#2159cc" for a tide phase. */
 export function tidePhaseHex(phase: number): string {
   return "#" + tidePhaseRgb(phase).map((c) => c.toString(16).padStart(2, "0")).join("");
+}
+
+export interface TideDay {
+  /** Local "YYYY-MM-DD". */
+  key: string;
+  /** That day's highs and lows still to come, in time order. */
+  events: TideEvent[];
+}
+
+/**
+ * Highs and lows after `from`, grouped by local day, through the end of the
+ * `days`-th day (today counts as the first). Used for the multi-week
+ * high/low tables, which skip the hour-by-hour detail.
+ */
+export function tideDays(events: readonly TideEvent[], from: Date, days: number, tz = WA_TZ): TideDay[] {
+  const lastKey = addDays(localDateKey(from, tz), days - 1);
+  const out: TideDay[] = [];
+  for (const e of [...events].sort((a, b) => a.time.getTime() - b.time.getTime())) {
+    if (e.time.getTime() <= from.getTime()) continue;
+    const key = localDateKey(e.time, tz);
+    if (key > lastKey) break;
+    const last = out[out.length - 1];
+    if (last && last.key === key) last.events.push(e);
+    else out.push({ key, events: [e] });
+  }
+  return out;
 }
