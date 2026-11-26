@@ -6,11 +6,13 @@ import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet } 
 import { RatingBadge } from '@/components/Badges';
 import { DayScoreLine } from '@/components/DayScoreLine';
 import { Text, View, useThemeColor } from '@/components/Themed';
+import { WeatherLine } from '@/components/Weather';
 import { toContext, type Beach } from '@/lib/data';
 import { fmtDay, relativeDay } from '@/lib/format';
 import { useBeaches, useBeachTides } from '@/lib/hooks';
 import { speciesForBeach } from '@/lib/species';
 import { useUser } from '@/lib/store';
+import { useWeather } from '@/lib/weather';
 
 export default function TodayScreen() {
   const { favoriteBeaches, ready } = useUser();
@@ -68,6 +70,7 @@ export default function TodayScreen() {
 function FavoriteCard({ beach, today }: { beach: Beach; today: string }) {
   const { favoriteSpecies, prefs } = useUser();
   const tides = useBeachTides(beach);
+  const weather = useWeather(beach.location);
   const ctx = toContext(beach);
   const species = speciesForBeach(beach, favoriteSpecies);
 
@@ -96,6 +99,7 @@ function FavoriteCard({ beach, today }: { beach: Beach; today: string }) {
             <Text style={styles.h2}>{beach.name}</Text>
             {best && <RatingBadge rating={best.rating} large />}
           </View>
+          <WeatherLine weather={weather} />
           {tides.loading && !tides.data && <ActivityIndicator style={{ marginVertical: 8 }} />}
           {tides.error && !tides.data && <Text muted>Tides unavailable: {tides.error}</Text>}
           {species.length === 0 && <Text muted>None of your species live on this kind of beach.</Text>}

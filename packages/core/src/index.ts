@@ -12,3 +12,4 @@ export * from "./tidemath.ts";
 export * from "./png.ts";
 export * from "./tidechart.ts";
 export * from "./areas.ts";
+export * from "./weather.ts";

@@ -9,6 +9,7 @@ Where and when to go shellfishing in Washington State.
 - Shows which public beaches are safe and in season for each species, from WA DOH, WDFW and NOAA data synced on a schedule.
 - Finds the next day the tide is low enough during the hours you want to be out, and rates each day.
 - Shows the water height hour by hour, and every high and low up to 8 weeks ahead, for any beach or NOAA tide station.
+- Shows temperature, weather, wind speed and wind direction now, hour by hour and for 7 days at each beach and station.
 - A tide map of every NOAA station in the US, with a 24-hour slider, place search and a 7-day view per station.
 - Push alerts for good days at your favorite beaches, plus a home-screen widget with the tide height now and tap-to-refresh.
 <!-- site-summary:end -->
@@ -51,6 +52,7 @@ station.
 | Beaches, safe-to-harvest status, species closures, clam/oyster seasons | WA DOH Recreational Shellfish Beaches ArcGIS layer | `sync-doh` | Hourly |
 | Tide stations and high/low predictions (ft MLLW) | NOAA CO-OPS Data and Metadata APIs | `sync-tides` | Daily (40 stations per run) |
 | Tide map, station week view and Areas (any US station) | NOAA CO-OPS, read directly by the app (only stations on screen) | none | On demand, cached 6 hours |
+| Temperature, weather, wind speed and direction (now, 24 hours, 7 days) | [Open-Meteo](https://open-meteo.com/) forecast API (free, no key, CC BY 4.0), read directly by the app | none | On demand, cached 30 minutes |
 | Place search on the tide map | OpenStreetMap Nominatim (on Enter or a pause in typing) | none | On demand |
 | Razor clam dig days | WDFW razor clam page (no feed; parsed) | `sync-razor-digs` | Daily |
 | Which species are common on each beach | WDFW beach page "Harvest profile" (parsed) | `sync-beach-profiles` | Every 30 min, 25 beaches a batch |
