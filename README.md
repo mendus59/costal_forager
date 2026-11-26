@@ -14,6 +14,9 @@ Where and when to go shellfishing in Washington State.
 - Push alerts for good days at your favorite beaches, plus a home-screen widget with the tide height now and tap-to-refresh.
 <!-- site-summary:end -->
 
+<!-- site-screenshot: docs/screenshot.jpg -->
+![Screenshot of Coastal Forager](docs/screenshot.jpg)
+
 Where and when to go shellfishing in Washington State. The app shows which
 public beaches are safe and in season for each species, and finds the next
 day when the tide is low enough during the hours you want to be out.
