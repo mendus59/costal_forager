@@ -23,10 +23,12 @@ import { ActivityIndicator, Image, Platform, Pressable, ScrollView, StyleSheet }
 import { Chip } from '@/components/Badges';
 import { HourlyTides } from '@/components/HourlyTides';
 import { TideTable } from '@/components/TideTable';
+import { WeatherCard } from '@/components/Weather';
 import { Text, View, useThemeColor } from '@/components/Themed';
 import { fmtFt, fmtTime } from '@/lib/format';
 import { useLoad } from '@/lib/hooks';
 import { useUser } from '@/lib/store';
+import { useWeather } from '@/lib/weather';
 import { loadForecast, loadOutlook, loadUsStations, OUTLOOK_DAYS } from '@/lib/tides';
 import { WIDGET_COLORS } from '@/widgets/types';
 
@@ -44,6 +46,7 @@ export default function StationScreen() {
   const [width, setWidth] = useState(0);
 
   const station = stations.data?.find((s) => s.id === id);
+  const weather = useWeather(station);
   const name = station?.name ?? nameParam ?? `Station ${id}`;
   const title = station ? stationLabel(station) : name;
   const area = useMemo(() => {
@@ -130,6 +133,13 @@ export default function StationScreen() {
         <View card>
           <Text style={styles.h2}>Hour by hour</Text>
           <HourlyTides tides={tides} now={now} />
+        </View>
+      )}
+
+      {station && (
+        <View card>
+          <Text style={styles.h2}>Weather and wind</Text>
+          <WeatherCard weather={weather} />
         </View>
       )}
 

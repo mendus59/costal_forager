@@ -20,18 +20,21 @@ import { ExternalLink } from '@/components/ExternalLink';
 import { FavoriteButton } from '@/components/FavoriteButton';
 import { HourlyTides } from '@/components/HourlyTides';
 import { TideTable } from '@/components/TideTable';
+import { WeatherCard } from '@/components/Weather';
 import { Text, View, useThemeColor } from '@/components/Themed';
 import { toContext } from '@/lib/data';
 import { fmtDay, relativeDay } from '@/lib/format';
 import { useBeaches, useBeachTides } from '@/lib/hooks';
 import { speciesForBeach } from '@/lib/species';
 import { useUser } from '@/lib/store';
+import { useWeather } from '@/lib/weather';
 
 export default function BeachScreen() {
   const { bidn } = useLocalSearchParams<{ bidn: string }>();
   const beaches = useBeaches();
   const beach = beaches.data?.find((b) => b.bidn === bidn);
   const tides = useBeachTides(beach);
+  const weather = useWeather(beach?.location);
   const { prefs, favoriteSpecies, widget, setWidget } = useUser();
   const tint = useThemeColor('tint');
   const today = localDateKey(new Date());
@@ -129,6 +132,13 @@ export default function BeachScreen() {
           </View>
         ))}
       </View>
+
+      {beach.location && (
+        <View card>
+          <Text style={styles.h2}>Weather and wind</Text>
+          <WeatherCard weather={weather} />
+        </View>
+      )}
 
       {tides.data && tides.data.tides.length > 0 && (
         <View card>
