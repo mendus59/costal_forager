@@ -8,9 +8,12 @@
  *    app's main screen.
  * 2. Tell the layout its size. The layout gets `widthDp` and `heightDp` in its
  *    environment (its second argument) so it can fit itself to the widget, as
- *    TideWidget does, and the size is saved to
+ *    TideWidget does, and its recent sizes (newest first, one "w,h" per line;
+ *    launchers give one for portrait and one for landscape) are saved to
  *    <files>/widget-size-<name>.txt so the app can draw the tide chart image
- *    at the shape it will be shown.
+ *    at the shape it will be shown. When the widget renders at a size it
+ *    hasn't seen (just placed or resized), the app's background task runs a
+ *    few seconds later to redraw the chart for that shape.
  * 3. Keep "now" current. The layout also gets `nowMs`, the time it renders,
  *    so it can draw the tide chart's now line and pick the next high and low
  *    itself, and the widget provider asks Android to redraw it every 30
@@ -37,7 +40,7 @@ const file = path.join(
   'node_modules/expo-widgets/android/src/main/java/expo/modules/widgets/ExpoWidgetsPeekWidget.kt',
 );
 const MARK = '// coastal-forager: open the app on tap';
-const SIZE_MARK = '// coastal-forager: widget size';
+const SIZE_MARK = '// coastal-forager: widget sizes';
 const NOW_MARK = '// coastal-forager: render time';
 const plugin = path.join(__dirname, '..', 'node_modules/expo-widgets/plugin/build/android/withAndroidWidgetFiles.js');
 const PERIOD = 'android:updatePeriodMillis="1800000"';
@@ -115,8 +118,27 @@ if (!src.includes(SIZE_MARK)) {
     '    val environment = getWidgetEnvironment(appContext)\n',
     `    ${SIZE_MARK}
     runCatching {
-      java.io.File(appContext.filesDir, "widget-size-$widgetName.txt").writeText("\${size.width.value},\${size.height.value}")
-    }
+      val sizes = java.io.File(appContext.filesDir, "widget-size-$widgetName.txt")
+      val here = "\${size.width.value},\${size.height.value}"
+      val seen = if (sizes.exists()) sizes.readLines().filter { it.isNotBlank() } else emptyList()
+      if (seen.firstOrNull() != here) sizes.writeText((listOf(here) + (seen - here)).take(4).joinToString("\\n"))
+      if (here !in seen) {
+        // A new size (just placed or resized): redraw the chart for it once the resize settles.
+        val worker = Class.forName("expo.modules.backgroundtask.BackgroundTaskWork")
+          .asSubclass(androidx.work.ListenableWorker::class.java)
+        val request = androidx.work.OneTimeWorkRequest.Builder(worker)
+          .setInitialDelay(3, java.util.concurrent.TimeUnit.SECONDS)
+          .setInputData(
+            androidx.work.Data.Builder()
+              .putString("appScopeKey", appContext.packageName)
+              .putBoolean("coastalForagerOneOff", true)
+              .build()
+          )
+          .build()
+        androidx.work.WorkManager.getInstance(appContext)
+          .enqueueUniqueWork("coastal-forager-widget-resize", androidx.work.ExistingWorkPolicy.REPLACE, request)
+      }
+    }.onFailure { android.util.Log.e("ExpoWidgets", "Widget size bookkeeping failed", it) }
     val environment = getWidgetEnvironment(appContext) +
       mapOf("widthDp" to size.width.value.toDouble(), "heightDp" to size.height.value.toDouble())
 `,
