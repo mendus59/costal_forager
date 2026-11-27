@@ -2,11 +2,13 @@
  * Android home-screen widget (Glance via expo-widgets). Like TideWidget it
  * fits itself to its size, from 1x1 up: the first rows show the next high and
  * low (more detail as it widens: compact times, then High and Low, then the
- * beach, species and heights), and once it is 2 rows tall a tide chart fills
- * the rest: a smooth curve with a dot on each high and low and a dashed line
- * at now, labeled with the water height now ("+4.2 ft ↑"). The day's rating
- * is a small colored dot. The height label sits on the chart, so it adds
- * nothing to the layout's size.
+ * beach, species and heights). A 1-row strip 3 or more columns wide puts a
+ * tide chart beside the times, and once it is 2 rows tall the chart fills the
+ * space under them: a smooth curve with a dot on each high and low and a
+ * dashed line at now, labeled with the water height now ("+4.2 ft ↑"). Large
+ * widgets get bigger text, and leftover height is split above and below. The
+ * day's rating is a small colored dot. The height label sits on the chart, so
+ * it adds nothing to the layout's size.
  *
  * Tapping the top-right corner (↻, from 2 columns wide) refreshes the widget:
  * it redraws at once, so the now line moves to the current time, and the app
@@ -81,6 +83,8 @@ const BeachTide = (p: BeachTideProps, env: unknown) => {
   const cols = w >= 180 ? 3 : w >= 110 ? 2 : 1;
   const rows = h >= 100 ? 2 : 1;
   const inline = cols === 3 && rows === 1;
+  const s = w >= 250 && h >= 160 ? 1.25 : 1;
+  const fs = (n: number) => Math.round(n * s);
   const pad = inline ? 8 : cols === 1 || rows === 1 ? 6 : 10;
   let chartW = 0;
   let chartH = 0;
@@ -89,9 +93,9 @@ const BeachTide = (p: BeachTideProps, env: unknown) => {
     chartH = Math.floor(h - 2 * pad);
     if (chartW < 40 || chartH < 24) chartW = chartH = 0;
   } else if (rows === 2) {
-    const header = cols === 3 ? 56 + (sub ? 14 : 0) : cols === 2 ? 50 : 46;
+    const header = Math.round((cols === 3 ? 56 + (sub ? 14 : 0) : cols === 2 ? 50 : 46) * s);
     chartW = Math.floor(w - 2 * (pad + 2));
-    chartH = Math.min(Math.floor(h - 2 * pad - header - 4), Math.floor(chartW / 2));
+    chartH = Math.min(Math.floor(h - 2 * pad - header - 4), Math.floor(chartW * 0.75));
     if (chartH < 20) chartH = 0;
   }
   // The drawn chart closest in shape, scaled to fit (never stretched).
@@ -113,10 +117,10 @@ const BeachTide = (p: BeachTideProps, env: unknown) => {
 
   const label = (arrow: string, color: string, text: string) => (
     <Row>
-      <Text color={color} maxLines={1} style={{ fontSize: 10 }}>
+      <Text color={color} maxLines={1} style={{ fontSize: fs(10) }}>
         {`${arrow} `}
       </Text>
-      <Text color={p.muted} maxLines={1} style={{ fontSize: 10 }}>
+      <Text color={p.muted} maxLines={1} style={{ fontSize: fs(10) }}>
         {text}
       </Text>
     </Row>
@@ -239,17 +243,19 @@ const BeachTide = (p: BeachTideProps, env: unknown) => {
 
   return (
     <Box contentAlignment="topEnd" modifiers={[fillMaxSize(), background(p.bg), cornerRadius(16)]}>
-      <Column modifiers={[fillMaxSize(), padding(pad + 2, pad, pad + 2, pad)]}>
+      <Column
+        verticalArrangement={rows === 2 && chartImage ? 'center' : 'top'}
+        modifiers={[fillMaxSize(), padding(pad + 2, pad, pad + 2, pad)]}>
         {cols === 3 || rows === 2 || !hasTides ? (
           <Text
             color={cols === 3 ? p.fg : p.muted}
             maxLines={1}
-            style={{ fontSize: cols === 3 ? 14 : cols === 2 ? 11 : 10, fontWeight: cols === 3 ? 'bold' : 'normal' }}>
+            style={{ fontSize: fs(cols === 3 ? 14 : cols === 2 ? 11 : 10), fontWeight: cols === 3 ? 'bold' : 'normal' }}>
             {p.beach}
           </Text>
         ) : null}
         {(cols === 3 && sub) || !hasTides ? (
-          <Text color={p.muted} maxLines={cols === 3 ? 1 : 3} style={{ fontSize: 11 }}>
+          <Text color={p.muted} maxLines={cols === 3 ? 1 : 3} style={{ fontSize: fs(11) }}>
             {sub}
           </Text>
         ) : null}
@@ -275,15 +281,15 @@ const BeachTide = (p: BeachTideProps, env: unknown) => {
         ) : null}
         {hasTides && cols > 1 ? (
           <Row modifiers={[padding(0, cols === 3 ? 4 : 2, 0, 4)]}>
-            <Column modifiers={[padding(0, 0, cols === 3 ? 18 : 10, 0)]}>
+            <Column modifiers={[padding(0, 0, fs(cols === 3 ? 18 : 10), 0)]}>
               {label('▲', highColor, cols === 3 ? `High  ${highFt}` : 'High')}
-              <Text color={p.fg} maxLines={1} style={{ fontSize: 15, fontWeight: 'bold' }}>
+              <Text color={p.fg} maxLines={1} style={{ fontSize: fs(15), fontWeight: 'bold' }}>
                 {highTime}
               </Text>
             </Column>
             <Column>
               {label('▼', lowColor, cols === 3 ? `Low  ${lowFt}` : 'Low')}
-              <Text color={p.fg} maxLines={1} style={{ fontSize: 15, fontWeight: 'bold' }}>
+              <Text color={p.fg} maxLines={1} style={{ fontSize: fs(15), fontWeight: 'bold' }}>
                 {lowTime}
               </Text>
             </Column>

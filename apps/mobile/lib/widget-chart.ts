@@ -5,8 +5,10 @@
  * the widget layout shows the file whose shape best fits the widget.
  *
  * The widget can be resized, and its layout learns its size only when it
- * renders, so a patch (scripts/patch-expo-widgets.cjs) records the last size
- * it rendered at. The chart is drawn for that size plus a few common shapes.
+ * renders, so a patch (scripts/patch-expo-widgets.cjs) records the sizes it
+ * rendered at and, when it sees a new one, runs the widget's background task
+ * so the chart is redrawn for it. The chart is drawn for those sizes plus a
+ * few common shapes.
  */
 import { tideChartPng, type TideEvent } from '@costal-forager/core';
 import { Directory, File, Paths } from 'expo-file-system';
@@ -16,32 +18,41 @@ import { PixelRatio } from 'react-native';
 import { CHART_SHAPES, WIDGET_COLORS, widgetGeometry, type TideChartImage } from '@/widgets/types';
 import { chartWindow } from './widget-data';
 
-/** The widget's last rendered size in dp, written by the expo-widgets patch, or null before it first renders. */
-export function lastWidgetSize(name: string): { w: number; h: number } | null {
+/**
+ * The widget's recent sizes in dp, newest first, written by the expo-widgets
+ * patch (one "width,height" per line; a launcher has one size for portrait
+ * and one for landscape). Empty before the widget first renders.
+ */
+export function recentWidgetSizes(name: string): { w: number; h: number }[] {
   try {
     const f = new File(Paths.document, `widget-size-${name}.txt`);
-    if (!f.exists) return null;
-    const [w, h] = f.textSync().split(',').map(Number);
-    return w > 0 && h > 0 ? { w, h } : null;
+    if (!f.exists) return [];
+    return f
+      .textSync()
+      .split('\n')
+      .map((line) => line.split(',').map(Number))
+      .filter(([w, h]) => w > 0 && h > 0)
+      .map(([w, h]) => ({ w, h }));
   } catch {
-    return null;
+    return [];
   }
 }
 
 /**
- * Draw the chart at `at` for the widget's last size and the common ratios,
+ * Draw the chart at `at` for the widget's recent sizes and the common ratios,
  * save them, and remove charts from earlier updates.
  */
 export function writeWidgetCharts(name: string, tides: TideEvent[], at: Date, harvestFt: number | null, hasSub: boolean): TideChartImage[] {
   const dir = new Directory(widgetsDirectory);
   if (!dir.exists) dir.create({ intermediates: true, idempotent: true });
   const density = Math.min(3, PixelRatio.get());
-  const size = lastWidgetSize(name);
-  const g = size ? widgetGeometry(size.w, size.h, hasSub) : null;
 
-  // [width, height] in dp: the real chart box when known, then the common shapes.
+  // [width, height] in dp: the real chart boxes when known, then the common shapes.
   const boxes: [number, number][] = [];
-  if (g && g.chartH > 0) boxes.push([g.chartW, g.chartH]);
+  for (const size of recentWidgetSizes(name)) {
+    const g = widgetGeometry(size.w, size.h, hasSub);
+    if (g.chartH > 0 && !boxes.some(([bw, bh]) => bw === g.chartW && bh === g.chartH)) boxes.push([g.chartW, g.chartH]);
+  }
   for (const [a, h] of CHART_SHAPES) {
     if (!boxes.some(([bw, bh]) => Math.abs(Math.log(bw / bh / a)) < 0.05)) boxes.push([Math.round(h * a), h]);
   }
