@@ -50,7 +50,7 @@ export function writeWidgetCharts(name: string, tides: TideEvent[], at: Date, ha
   // [width, height] in dp: the real chart boxes when known, then the common shapes.
   const boxes: [number, number][] = [];
   for (const size of recentWidgetSizes(name)) {
-    const g = widgetGeometry(size.w, size.h, hasSub);
+    const g = widgetGeometry(size.w, size.h, hasSub, PixelRatio.getFontScale());
     if (g.chartH > 0 && !boxes.some(([bw, bh]) => bw === g.chartW && bh === g.chartH)) boxes.push([g.chartW, g.chartH]);
   }
   for (const [a, h] of CHART_SHAPES) {

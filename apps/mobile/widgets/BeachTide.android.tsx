@@ -2,13 +2,15 @@
  * Android home-screen widget (Glance via expo-widgets). Like TideWidget it
  * fits itself to its size, from 1x1 up: the first rows show the next high and
  * low (more detail as it widens: compact times, then High and Low, then the
- * beach, species and heights). A 1-row strip 3 or more columns wide puts a
- * tide chart beside the times, and once it is 2 rows tall the chart fills the
- * space under them: a smooth curve with a dot on each high and low and a
- * dashed line at now, labeled with the water height now ("+4.2 ft ↑"). Large
- * widgets get bigger text, and leftover height is split above and below. The
- * day's rating is a small colored dot. The height label sits on the chart, so
- * it adds nothing to the layout's size.
+ * beach, species and heights). A widget 3 or more columns wide and under
+ * 150 dp tall puts a tide chart beside the times; taller ones (and 2-column
+ * ones from 2 rows) put the chart under the times: a smooth curve with a dot
+ * on each high and low and a dashed line at now, labeled with the water
+ * height now ("+4.2 ft ↑"). Beside the times the label sits on the chart's
+ * top edge; under them it gets its own row so it never covers the curve.
+ * Large widgets get slightly bigger text, and the header's height allows for
+ * the phone's text size setting (`fontScale`) so nothing is pushed off the
+ * top. The day's rating is a small colored dot.
  *
  * Tapping the top-right corner (↻, from 2 columns wide) refreshes the widget:
  * it redraws at once, so the now line moves to the current time, and the app
@@ -38,11 +40,13 @@ import { EMPTY_BEACH_TIDE, type BeachTideProps } from './types';
 
 const BeachTide = (p: BeachTideProps, env: unknown) => {
   'widget';
-  const e = (env ?? {}) as { widthDp?: number; heightDp?: number; nowMs?: number };
+  const e = (env ?? {}) as { widthDp?: number; heightDp?: number; nowMs?: number; fontScale?: number };
   const w = e.widthDp && e.widthDp > 0 ? e.widthDp : 250;
   const h = e.heightDp && e.heightDp > 0 ? e.heightDp : 150;
   const sub = [p.species, p.note].filter((s) => !!s).join(' · ');
   const now = e.nowMs && e.nowMs > 0 ? e.nowMs : 0;
+  // The phone's text size setting: text sizes are in sp, so the header grows with it.
+  const fontScale = e.fontScale && e.fontScale > 0 ? e.fontScale : 1;
 
   // The next high and low as of now; the published text if the time or the list is missing.
   const upcoming = p.upcoming ?? [];
@@ -81,22 +85,24 @@ const BeachTide = (p: BeachTideProps, env: unknown) => {
 
   // Same math as widgetGeometry() in ./types (INLINE_TEXT_W is 148).
   const cols = w >= 180 ? 3 : w >= 110 ? 2 : 1;
-  const rows = h >= 100 ? 2 : 1;
+  const rows = h >= (cols === 3 ? 150 : 100) ? 2 : 1;
   const inline = cols === 3 && rows === 1;
-  const s = w >= 250 && h >= 160 ? 1.25 : 1;
+  const s = w >= 250 && h >= 200 ? 1.2 : 1;
   const fs = (n: number) => Math.round(n * s);
   const pad = inline ? 8 : cols === 1 || rows === 1 ? 6 : 10;
   let chartW = 0;
   let chartH = 0;
+  let labelH = 0;
   if (inline) {
     chartW = Math.floor(w - 2 * (pad + 2) - 148 - 6);
-    chartH = Math.floor(h - 2 * pad);
+    chartH = Math.min(Math.floor(h - 2 * pad), Math.floor(chartW * 0.8));
     if (chartW < 40 || chartH < 24) chartW = chartH = 0;
   } else if (rows === 2) {
-    const header = Math.round((cols === 3 ? 56 + (sub ? 14 : 0) : cols === 2 ? 50 : 46) * s);
+    const header = Math.round((cols === 3 ? 60 + (sub ? 16 : 0) : cols === 2 ? 52 : 48) * s * fontScale) + 6;
+    labelH = Math.round(16 * fontScale);
     chartW = Math.floor(w - 2 * (pad + 2));
-    chartH = Math.min(Math.floor(h - 2 * pad - header - 4), Math.floor(chartW * 0.75));
-    if (chartH < 20) chartH = 0;
+    chartH = Math.min(Math.floor(h - 2 * pad - header - labelH), Math.floor(chartW * 0.6));
+    if (chartH < 24) chartH = labelH = 0;
   }
   // The drawn chart closest in shape, scaled to fit (never stretched).
   const ratio = chartH > 0 ? chartW / chartH : 0;
@@ -164,18 +170,25 @@ const BeachTide = (p: BeachTideProps, env: unknown) => {
   const nowLine =
     dashes > 0 ? (
       <Column modifiers={[padding(Math.max(0, lineX), Math.round((chartH - imgH) / 2), 0, 0)]}>
-        {Array.from({ length: dashes }, (_, i) => (
-          <Box key={i} modifiers={[padding(0, 0, 0, 3)]}>
-            <Box modifiers={[size(1.5, 4), background('#b8c9cf')]} />
-          </Box>
+        {/* Glance allows at most 10 children in a Column, so the dashes go in groups of 10. */}
+        {Array.from({ length: Math.ceil(dashes / 10) }, (_, g) => (
+          <Column key={g}>
+            {Array.from({ length: Math.min(10, dashes - g * 10) }, (_, i) => (
+              <Box key={i} modifiers={[padding(0, 0, 0, 3)]}>
+                <Box modifiers={[size(1.5, 4), background('#b8c9cf')]} />
+              </Box>
+            ))}
+          </Column>
         ))}
       </Column>
     ) : null;
-  // The height now, in a small tag at the top of the chart just right of the now line.
+  // The height now, in a small tag just right of the now line: on the chart's
+  // top edge in a 1-row strip, in its own row above the chart when taller so
+  // it never covers the curve.
   const labelX = Math.round(Math.max(0, lineX) + 4);
   const nowLabel =
     dashes > 0 && nowFt ? (
-      <Column modifiers={[padding(labelX, Math.max(0, Math.round((chartH - imgH) / 2)), 0, 0)]}>
+      <Column modifiers={[padding(labelX, labelH > 0 ? 0 : Math.max(0, Math.round((chartH - imgH) / 2)), 0, 0)]}>
         <Box modifiers={[background(p.bg), cornerRadius(4), padding(3, 0, 3, 0)]}>
           <Text color={p.fg} maxLines={1} style={{ fontSize: 10, fontWeight: 'bold' }}>
             {nowFt}
@@ -183,7 +196,7 @@ const BeachTide = (p: BeachTideProps, env: unknown) => {
         </Box>
       </Column>
     ) : null;
-  const chartImage =
+  const chartBox =
     hasTides && chart && chartH > 0 ? (
       <Box modifiers={[size(chartW, chartH)]}>
         <Image
@@ -193,9 +206,20 @@ const BeachTide = (p: BeachTideProps, env: unknown) => {
           modifiers={[size(chartW, chartH)]}
         />
         {nowLine}
-        {nowLabel}
+        {labelH > 0 ? null : nowLabel}
       </Box>
     ) : null;
+  const chartImage =
+    chartBox && labelH > 0 ? (
+      <Column>
+        <Box contentAlignment="bottomStart" modifiers={[size(chartW, labelH)]}>
+          {nowLabel}
+        </Box>
+        {chartBox}
+      </Column>
+    ) : (
+      chartBox
+    );
 
   if (inline && hasTides) {
     // 3x1: beach and times on the left, the chart on the right.
@@ -243,9 +267,7 @@ const BeachTide = (p: BeachTideProps, env: unknown) => {
 
   return (
     <Box contentAlignment="topEnd" modifiers={[fillMaxSize(), background(p.bg), cornerRadius(16)]}>
-      <Column
-        verticalArrangement={rows === 2 && chartImage ? 'center' : 'top'}
-        modifiers={[fillMaxSize(), padding(pad + 2, pad, pad + 2, pad)]}>
+      <Column modifiers={[fillMaxSize(), padding(pad + 2, pad, pad + 2, pad)]}>
         {cols === 3 || rows === 2 || !hasTides ? (
           <Text
             color={cols === 3 ? p.fg : p.muted}

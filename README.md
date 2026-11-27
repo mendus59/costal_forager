@@ -132,9 +132,10 @@ eas build --profile development --platform android   # or ios
   now, green shading where the water is low enough for the species), and the
   day's rating as a colored dot in the corner. Like TideWidget it fits itself
   to its size: compact times at 1 column, High and Low at 2, the beach,
-  species and heights at 3. At 3x1 and wider strips the times sit beside the
-  chart; from 2 rows tall the chart fills the space below them, and large
-  widgets get bigger text. After the widget is placed or resized the app
+  species and heights at 3. Up to 150 dp tall (3x1, 4x1 and short
+  2-row cells) the times sit beside the chart; taller, the chart sits below
+  them with the height-now label in its own row, and the layout allows for
+  the phone's text size setting. After the widget is placed or resized the app
   redraws the chart for its new shape a few seconds later; until then the
   closest drawn shape is scaled to fit, never stretched. Android widgets
   have no canvas, so the app draws the chart into PNGs
