@@ -14,6 +14,8 @@
  *    at the shape it will be shown. When the widget renders at a size it
  *    hasn't seen (just placed or resized), the app's background task runs a
  *    few seconds later to redraw the chart for that shape.
+ *    It also gets `fontScale`, the phone's text size setting, because text
+ *    sizes are in sp and the layout estimates their height in dp.
  * 3. Keep "now" current. The layout also gets `nowMs`, the time it renders,
  *    so it can draw the tide chart's now line and pick the next high and low
  *    itself, and the widget provider asks Android to redraw it every 30
@@ -42,6 +44,7 @@ const file = path.join(
 const MARK = '// coastal-forager: open the app on tap';
 const SIZE_MARK = '// coastal-forager: widget sizes';
 const NOW_MARK = '// coastal-forager: render time';
+const FONT_MARK = '// coastal-forager: text size';
 const plugin = path.join(__dirname, '..', 'node_modules/expo-widgets/plugin/build/android/withAndroidWidgetFiles.js');
 const PERIOD = 'android:updatePeriodMillis="1800000"';
 const interaction = path.join(path.dirname(file), 'WidgetInteractionAction.kt');
@@ -68,6 +71,7 @@ if (
   src.includes(MARK) &&
   src.includes(SIZE_MARK) &&
   src.includes(NOW_MARK) &&
+  src.includes(FONT_MARK) &&
   pluginSrc.includes(PERIOD) &&
   interactionSrc.includes(REFRESH_MARK) &&
   bgWorkSrc.includes(ONE_OFF_MARK) &&
@@ -150,6 +154,15 @@ if (!src.includes(NOW_MARK)) {
     `      mapOf("widthDp" to size.width.value.toDouble(), "heightDp" to size.height.value.toDouble()) +
       ${NOW_MARK}
       mapOf("nowMs" to System.currentTimeMillis().toDouble())
+`,
+  );
+}
+if (!src.includes(FONT_MARK)) {
+  replace(
+    '      mapOf("nowMs" to System.currentTimeMillis().toDouble())\n',
+    `      mapOf("nowMs" to System.currentTimeMillis().toDouble()) +
+      ${FONT_MARK}
+      mapOf("fontScale" to appContext.resources.configuration.fontScale.toDouble())
 `,
   );
 }
